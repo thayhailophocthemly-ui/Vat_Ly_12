@@ -1,14 +1,22 @@
 import streamlit as st
 import google.generativeai as genai
 import docx
+import json
+from datetime import datetime
+from streamlit_mic_recorder import mic_recorder
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
+
 # Cấu hình giao diện
-st.set_page_config(page_title="Ôn tập Vật lý 12 - AI", layout="centered")
-# Cấu hình API Gemini (Thay mã API của thầy/cô vào đây)
+st.set_page_config(page_title="Ôn tập Vật lý 12 - AI Pro", layout="centered")
+
+# Cấu hình API Gemini
 API_KEY = "AQ.Ab8RN6KOM_23kctvGmqvoYAvRuoSzpHiKHEd1nU6IJcL8cmJtw"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Khởi tạo kho lưu trữ ma trận và đề thi trong phiên làm việc
+# Khởi tạo Session State
 if 'matrices_dict' not in st.session_state:
     st.session_state['matrices_dict'] = {
         "Kiểm tra Giữa kỳ 1": "",
@@ -16,7 +24,7 @@ if 'matrices_dict' not in st.session_state:
         "Kiểm tra Giữa kỳ 2": "",
         "Kiểm tra Cuối kỳ 2": ""
     }
-# Lưu trữ phần nội dung đa phương tiện/file ma trận thô gửi cho Gemini
+
 if 'matrix_parts' not in st.session_state:
     st.session_state['matrix_parts'] = {
         "Kiểm tra Giữa kỳ 1": None,
@@ -24,96 +32,83 @@ if 'matrix_parts' not in st.session_state:
         "Kiểm tra Giữa kỳ 2": None,
         "Kiểm tra Cuối kỳ 2": None
     }
+
 st.title("⚡ HỆ THỐNG ÔN TẬP VẬT LÝ 12 THÔNG MINH")
-st.write("Ứng dụng hỗ trợ ôn tập bám sát ma trận chuẩn định hướng kiểm tra đánh giá.")
-# Đăng ký thông tin học sinh ở thanh bên
+st.write("Ứng dụng tương tác thông minh bám sát ma trận chuẩn định hướng mới.")
+
+# Sidebar đăng ký thông tin học sinh
 st.sidebar.header("👤 Thông tin học sinh")
 name = st.sidebar.text_input("Họ và tên:")
 cl = st.sidebar.text_input("Lớp:")
+
 if not name or not cl:
-    st.warning("⚠️ Thầy/cô và các em học sinh vui lòng nhập Họ tên và Lớp ở thanh bên trái để bắt đầu!")
+    st.warning("⚠️ Vui lòng nhập Họ tên và Lớp ở thanh bên trái để bắt đầu ôn tập!")
     st.stop()
-st.success(f"Chào em **{name}** - Lớp **{cl}**! Hãy chọn nội dung ôn tập bên dưới.")
+
+st.success(f"Chào em **{name}** - Lớp **{cl}**! Chúc em ôn tập đạt kết quả cao.")
+
 # Tạo Tab chính
-tab1, tab2, tab3 = st.tabs(["📂 1. Chọn Kỳ Thi & Cấu Hình Ma Trận", "📝 2. Phần Ôn Tập & Làm Bài", "📊 3. Lịch Sử & Tiến Bộ"])
+tab1, tab2, tab3 = st.tabs(["📂 1. Chọn Kỳ Thi & Ma Trận", "📝 2. Làm Bài & Tương Tác AI", "📊 3. Lịch Sử & Tiến Bộ"])
+
 with tab1:
     st.subheader("Bước 1: Chọn kỳ thi cần ôn tập")
     exam_type = st.selectbox(
         "Kỳ thi:",
         ["-- Chọn kỳ thi --", "Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"]
     )
-        st.divider()
-    st.subheader("🔒 Khu vực dành cho Giáo viên (Cấu hình Ma trận đa định dạng)")
-    teacher_pass = st.text_input("Nhập mật mã giáo viên để cấu hình/thay đổi ma trận:", type="password")
-        if teacher_pass == "vatly@123": # Mật mã giáo viên
-        st.success("✅ Đã xác thực quyền Giáo viên thành công!")
+    
+    st.divider()
+    st.subheader("🔒 Khu vực Giáo viên (Cấu hình Ma trận)")
+    teacher_pass = st.text_input("Mật mã giáo viên:", type="password")
+    
+    if teacher_pass == "vatly@123":
+        st.success("✅ Xác thực quyền Giáo viên thành công!")
+        target_exam = st.selectbox("Chọn kỳ thi cập nhật ma trận:", ["Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"])
         
-        target_exam = st.selectbox(
-            "Chọn kỳ thi muốn cập nhật ma trận:",
-            ["Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"]
-        )
-                current_matrix_text = st.session_state['matrices_dict'][target_exam]
-        
-        if current_matrix_text or st.session_state['matrix_parts'][target_exam] is not None:
-            st.info(f"📌 Đã có ma trận cho: **{target_exam}**")
-            if st.button(f"🗑️ Xóa ma trận hiện tại của {target_exam}", key=f"del_{target_exam}"):
+        current_text = st.session_state['matrices_dict'][target_exam]
+        if current_text or st.session_state['matrix_parts'][target_exam] is not None:
+            if st.button(f"🗑️ Xóa ma trận hiện tại của {target_exam}"):
                 st.session_state['matrices_dict'][target_exam] = ""
                 st.session_state['matrix_parts'][target_exam] = None
-                st.success(f"Đã xóa ma trận của {target_exam} thành công!")
+                st.success("Đã xóa ma trận thành công!")
                 st.rerun()
-                # Mở rộng định dạng tải file: Txt, Docx, Pdf, Ảnh (Png, Jpg)
-        uploaded_matrix_file = st.file_uploader(
-            f"Tải lên file ma trận cho {target_exam} (Hỗ trợ: .txt, .docx, .pdf, .png, .jpg)", 
-            type=["txt", "docx", "pdf", "png", "jpg", "jpeg"],
-            key=f"uploader_{target_exam}"
-        )
-                matrix_input = st.text_area(f"Hoặc dán văn bản ma trận đặc tả trực tiếp:", value=current_matrix_text if not current_matrix_text.startswith("File") else "", key=f"textarea_{target_exam}")
-                if st.button("💾 Lưu ma trận này vào hệ thống", key=f"save_{target_exam}"):
-            extracted_text = matrix_input
-            file_part = None
+        
+        up_file = st.file_uploader(f"Tải file ma trận cho {target_exam} (.txt, .docx, .pdf, ảnh):", type=["txt", "docx", "pdf", "png", "jpg"])
+        matrix_input = st.text_area("Hoặc dán nội dung ma trận:", value=current_text if not current_text.startswith("File") else "")
+        
+        if st.button("💾 Lưu ma trận"):
+            extracted = matrix_input
+            f_part = None
+            if up_file is not None:
+                ext = up_file.name.split('.')[-1].lower()
+                if ext == "txt":
+                    extracted = up_file.read().decode("utf-8")
+                elif ext == "docx":
+                    doc = docx.Document(up_file)
+                    extracted = "\n".join([p.text for p in doc.paragraphs])
+                elif ext in ["pdf", "png", "jpg"]:
+                    f_bytes = up_file.read()
+                    mime = "application/pdf" if ext == "pdf" else f"image/{ext}"
+                    f_part = {"mime_type": mime, "data": f_bytes}
+                    extracted = f"[File đính kèm: {up_file.name}]"
             
-            if uploaded_matrix_file is not None:
-                file_extension = uploaded_matrix_file.name.split('.')[-1].lower()
-                
-                if file_extension == "txt":
-                    extracted_text = uploaded_matrix_file.read().decode("utf-8")
-                elif file_extension == "docx":
-                    doc = docx.Document(uploaded_matrix_file)
-                    extracted_text = "\n".join([para.text for para in doc.paragraphs])
-                elif file_extension == "pdf":
-                    file_bytes = uploaded_matrix_file.read()
-                    file_part = {"mime_type": "application/pdf", "data": file_bytes}
-                    extracted_text = f"[File PDF ma trận: {uploaded_matrix_file.name}]"
-                elif file_extension in ["png", "jpg", "jpeg"]:
-                    file_bytes = uploaded_matrix_file.read()
-                    mime = f"image/{file_extension}" if file_extension != "jpg" else "image/jpeg"
-                    file_part = {"mime_type": mime, "data": file_bytes}
-                    extracted_text = f"[File Ảnh ma trận: {uploaded_matrix_file.name}]"
-            
-            st.session_state['matrices_dict'][target_exam] = extracted_text
-            st.session_state['matrix_parts'][target_exam] = file_part
-            st.success(f"Đã lưu thành công ma trận đa định dạng cho **{target_exam}**!")
+            st.session_state['matrices_dict'][target_exam] = extracted
+            st.session_state['matrix_parts'][target_exam] = f_part
+            st.success(f"Đã lưu ma trận cho {target_exam} thành công!")
             
     elif teacher_pass:
-        st.error("❌ Sai mật mã giáo viên!")
-    
+        st.error("Sai mật mã!")
+        
     if exam_type != "-- Chọn kỳ thi --":
         st.session_state['selected_exam'] = exam_type
-        st.info(f"Đã chọn kỳ thi: **{exam_type}**. Vui lòng chuyển sang **Tab 2** để chọn phần ôn tập!")
+        st.info(f"Đã chọn: **{exam_type}**. Chuyển sang **Tab 2** để làm bài!")
 
 with tab2:
-    current_exam_chosen = st.session_state.get('selected_exam', '-- Chọn kỳ thi --')
-    if current_exam_chosen == '-- Chọn kỳ thi --':
-        st.warning("⚠️ Em chưa chọn kỳ thi ở Tab 1! Vui lòng quay lại Tab 1 để chọn kỳ thi trước.")
+    current_exam = st.session_state.get('selected_exam', '-- Chọn kỳ thi --')
+    if current_exam == '-- Chọn kỳ thi --':
+        st.warning("⚠️ Em chưa chọn kỳ thi ở Tab 1!")
     else:
-        st.write(f"Đang ôn tập cho: **{current_exam_chosen}**")
-        
-        active_matrix_text = st.session_state['matrices_dict'].get(current_exam_chosen, "")
-        active_matrix_file_part = st.session_state['matrix_parts'].get(current_exam_chosen, None)
-        
-        if not active_matrix_text and active_matrix_file_part is None:
-            st.warning(f"⚠️ Lưu ý: Giáo viên chưa cập nhật ma trận cho kỳ **{current_exam_chosen}**. AI sẽ ra đề theo chuẩn chung.")
-        
+        st.write(f"Đang ôn tập: **{current_exam}**")
         section = st.radio(
             "Chọn hình thức ôn tập:",
             [
@@ -124,54 +119,110 @@ with tab2:
             ]
         )
         
-        if st.button("🚀 Tạo đề ôn tập bám sát ma trận bằng AI"):
-            with st.spinner("🤖 AI đang phân tích ma trận (bao gồm cả file đính kèm) và biên soạn đề..."):
-                prompt_content = [
-                    f"""
-                    Bạn là một giáo viên Vật lý 12 chuyên nghiệp.
-                    Đây là nội dung hoặc tài liệu ma trận đặc tả dành riêng cho bài {current_exam_chosen}:
-                    Nội dung văn bản mô tả ma trận: {active_matrix_text}
-                    
-                    Hãy ra một đề ôn tập cho phần {section}. 
-                    Đề phải bám sát chính xác các mức độ nhận thức, số lượng câu hỏi quy định trong tài liệu ma trận trên.
-                    """
+        if st.button("🚀 Bắt đầu tạo đề tương tác"):
+            with st.spinner("🤖 AI đang sinh đề kiểm tra chuẩn hóa cấu trúc..."):
+                active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
+                prompt = f"""
+                Bạn là chuyên gia ra đề Vật lý 12. Dựa vào ma trận: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
+                BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown nào khác như ```json), bao gồm một danh sách các câu hỏi theo cấu trúc sau:
+                [
+                  {{
+                    "id": 1,
+                    "question": "Nội dung câu hỏi...",
+                    "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
+                    "answer": "A",
+                    "explanation": "Hướng dẫn giải chi tiết..."
+                  }}
                 ]
+                """
+                response = model.generate_content(prompt)
+                try:
+                    clean_text = response.text.strip().replace("```json", "").replace("```", "")
+                    st.session_state['quiz_data'] = json.loads(clean_text)
+                except:
+                    st.error("AI đang bận, vui lòng bấm tạo lại đề giúp em nhé!")
+                    st.session_state['quiz_data'] = []
+
+        if 'quiz_data' in st.session_state and st.session_state['quiz_data']:
+            user_answers = {}
+            for idx, q in enumerate(st.session_state['quiz_data']):
+                st.markdown(f"**Câu {q.get('id', idx+1)}:** {q.get('question')}")
+                user_answers[idx] = st.radio(f"Chọn đáp án câu {idx+1}:", q.get('options'), key=f"q_{idx}")
+                st.divider()
                 
-                # Nếu có file đa phương tiện (PDF hoặc Ảnh), Gemini sẽ đọc trực tiếp
-                if active_matrix_file_part is not None:
-                    prompt_content.append(active_matrix_file_part)
+            if st.button("📌 Nộp bài và Xem kết quả"):
+                score = 0
+                total = len(st.session_state['quiz_data'])
+                for idx, q in enumerate(st.session_state['quiz_data']):
+                    chosen = user_answers[idx]
+                    if chosen and chosen.startswith(q.get('answer')):
+                        score += 1
                 
-                response = model.generate_content(prompt_content)
-                st.session_state['de_thi'] = response.text
+                final_score = round((score / total) * 10, 2)
+                st.success(f"🎉 Em đã hoàn thành bài! Điểm số đạt được: **{final_score} / 10 điểm** ({score}/{total} câu đúng).")
                 
-            st.markdown("### 📋 Đề Ôn Tập Của Em:")
-            st.write(st.session_state.get('de_thi', ''))
+                # Hiển thị giải thích chi tiết
+                st.markdown("### 🔍 Hướng dẫn giải chi tiết từng câu:")
+                for idx, q in enumerate(st.session_state['quiz_data']):
+                    st.write(f"**Câu {idx+1}:** Đáp án đúng là **{q.get('answer')}**. Giải thích: {q.get('explanation')}")
+
+                # --- ĐOẠN KẾT NỐI GOOGLE SHEETS TỰ ĐỘNG LƯU ---
+                try:
+                    scope = ["[https://spreadsheets.google.com/feeds](https://spreadsheets.google.com/feeds)", "[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)"]
+                    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+                    client = gspread.authorize(creds)
+                    
+                    # Mở file Google Sheets tên là LichSuOnTapVatLy12
+                    sheet = client.open("LichSuOnTapVatLy12").sheet1
+                    
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    row_data = [now_str, name, cl, current_exam, section, final_score]
+                    sheet.append_row(row_data)
+                    st.balloons()
+                    st.toast("✅ Đã tự động lưu kết quả vào hệ thống của giáo viên!", icon="📊")
+                except Exception as e:
+                    st.warning("⚠️ Lưu ý: Chưa kết nối thành công file Google Sheets, nhưng bài làm đã được chấm xong!")
+
+            # Cửa sổ chat thắc mắc kết hợp Thu âm giọng nói
+            st.markdown("---")
+            st.subheader("💬 Góc thắc mắc với AI (Hỗ trợ Gõ chữ & Thu âm)")
+            audio_info = mic_recorder(start_prompt="🎙️ Bấm để thu âm câu hỏi", stop_prompt="⏹️ Dừng thu âm", key='recorder')
+            user_q = st.text_input("Hoặc gõ câu hỏi thắc mắc của em tại đây:")
             
-            st.divider()
-            if st.button("📌 Xem kết quả và Hướng dẫn giải"):
-                st.success("Hệ thống đã ghi nhận!")
-                st.markdown("### 🔍 Phân tích đáp án & Lời giải chi tiết từ AI:")
-                
-                explain_prompt = f"Dựa trên đề thi vừa tạo, hãy cung cấp bảng đáp án chi tiết và hướng dẫn giải thích từng câu thật dễ hiểu cho học sinh lớp 12."
-                explanation = model.generate_content(explain_prompt)
-                st.write(explanation.text)
-                
-                st.markdown("---")
-                st.subheader("💬 Góc thắc mắc với AI")
-                user_q = st.text_input("Nếu em có thắc mắc với câu nào, hãy viết vào đây:")
-                if user_q:
-                    ans = model.generate_content(f"Giải đáp thắc mắc môn Vật lý cho học sinh: {user_q}")
-                    st.write(ans.text)
+            if user_q:
+                ans = model.generate_content(f"Giải đáp thắc mắc môn Vật lý cho học sinh lớp 12: {user_q}")
+                st.info(f"🤖 **AI giải đáp:** {ans.text}")
+            elif audio_info:
+                st.success("Đã ghi nhận giọng nói của em! AI đang phân tích...")
+                ans = model.generate_content("Học sinh vừa đặt câu hỏi bằng giọng nói về phần lý thuyết Vật lý 12, hãy giải đáp thật chi tiết và khích lệ học sinh.")
+                st.info(f"🤖 **AI giải đáp:** {ans.text}")
 
 with tab3:
     st.subheader("📊 Theo dõi sự tiến bộ")
     role = st.radio("Bạn là ai?", ["Học sinh", "Giáo viên"])
     if role == "Học sinh":
-        st.info(f"Lịch sử ôn tập của học sinh: **{name} ({cl})**.")
+        st.info(f"Lịch sử ôn tập của học sinh: **{name} ({cl})**. Hệ thống ghi nhận mọi nỗ lực học tập của em.")
     else:
-        password = st.text_input("Nhập mật mã quản trị giáo viên:", type="password", key="teacher_history_pass")
-        if password == "vatly@123":
-            st.success("Đăng nhập quyền Giáo viên thành công!")
-            st.write("📋 Tổng hợp lịch sử luyện tập của toàn bộ học sinh lớp 12.")
-        elif password:
+        pwd = st.text_input("Mật mã quản trị giáo viên:", type="password", key="p_hist")
+        if pwd == "vatly@123":
+            st.success("✅ Đăng nhập quyền Giáo viên thành công!")
+            st.write("📋 **Bảng tổng hợp lịch sử luyện tập thực tế từ Google Sheets:**")
+            
+            # --- ĐOẠN ĐỌC DỮ LIỆU TỪ GOOGLE SHEETS HIỂN THỊ CHO GIÁO VIÊN ---
+            try:
+                scope = ["[https://spreadsheets.google.com/feeds](https://spreadsheets.google.com/feeds)", "[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)"]
+                creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+                client = gspread.authorize(creds)
+                sheet = client.open("LichSuOnTapVatLy12").sheet1
+                data = sheet.get_all_records()
+                
+                if data:
+                    df = pd.DataFrame(data)
+                    st.dataframe(df, use_container_width=True)
+                else:
+                    st.info("Chưa có học sinh nào nộp bài.")
+            except Exception as e:
+                st.error(f"Không thể tải dữ liệu từ Google Sheets. Vui lòng kiểm tra lại file credentials.json. Chi tiết lỗi: {e}")
+                
+        elif pwd:
             st.error("Sai mật mã!")
