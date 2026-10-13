@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import google.generativeai as genai
 
 # Cấu hình giao diện
@@ -9,8 +9,17 @@ API_KEY = "AQ.Ab8RN6KOM_23kctvGmqvoYAvRuoSzpHiKHEd1nU6IJcL8cmJtw"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-st.title("⚡ ÔN TẬP KIỂM TRA VẬT LÝ LỚP 12")
-st.write("Ứng dụng thông minh hỗ trợ ôn tập bám sát ma trận đề thi.")
+# Khởi tạo kho lưu trữ ma trận và đề thi trong phiên làm việc
+if 'matrices_dict' not in st.session_state:
+    st.session_state['matrices_dict'] = {
+        "Kiểm tra Giữa kỳ 1": "",
+        "Kiểm tra Cuối kỳ 1": "",
+        "Kiểm tra Giữa kỳ 2": "",
+        "Kiểm tra Cuối kỳ 2": ""
+    }
+
+st.title("⚡ HỆ THỐNG ÔN TẬP VẬT LÝ 12 THÔNG MINH")
+st.write("Ứng dụng hỗ trợ ôn tập bám sát ma trận chuẩn định hướng kiểm tra đánh giá.")
 
 # Đăng ký thông tin học sinh ở thanh bên
 st.sidebar.header("👤 Thông tin học sinh")
@@ -24,86 +33,115 @@ if not name or not cl:
 st.success(f"Chào em **{name}** - Lớp **{cl}**! Hãy chọn nội dung ôn tập bên dưới.")
 
 # Tạo Tab chính
-tab1, tab2, tab3 = st.tabs(["📂 1. Chọn Bài Kiểm Tra & Ma Trận", "📝 2. Phần Ôn Tập & Làm Bài", "📊 3. Lịch Sử & Tiến Bộ"])
+tab1, tab2, tab3 = st.tabs(["📂 1. Chọn Kỳ Thi & Cấu Hình Ma Trận", "📝 2. Phần Ôn Tập & Làm Bài", "📊 3. Lịch Sử & Tiến Bộ"])
 
 with tab1:
-    st.subheader("Bước 1: Chọn kỳ thi")
+    st.subheader("Bước 1: Chọn kỳ thi cần ôn tập")
     exam_type = st.selectbox(
         "Kỳ thi:",
         ["-- Chọn kỳ thi --", "Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"]
     )
     
-    st.subheader("Bước 2: Đưa ma trận đề kiểm tra lên App")
-    st.markdown("Giáo viên tải lên file ma trận (Word/PDF/Txt) hoặc dán nội dung ma trận đặc tả vào đây để Gemini căn cứ ra đề:")
+    st.divider()
+    st.subheader("🔒 Khu vực dành cho Giáo viên (Cấu hình Ma trận)")
+    teacher_pass = st.text_input("Nhập mật mã giáo viên để cấu hình/thay đổi ma trận:", type="password")
     
-    # Tính năng tải file ma trận lên
-    matrix_file = st.file_uploader("Tải lên file ma trận đặc tả (.txt, .docx, .pdf)", type=["txt", "docx", "pdf"])
+    if teacher_pass == "vatly@123": # Mật mã giáo viên (Thầy/cô có thể đổi tùy ý ở đây)
+        st.success("✅ Đã xác thực quyền Giáo viên thành công!")
+        
+        target_exam = st.selectbox(
+            "Chọn kỳ thi muốn cập nhật ma trận:",
+            ["Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"]
+        )
+        
+        current_matrix = st.session_state['matrices_dict'][target_exam]
+        
+        if current_matrix:
+            st.info(f"📌 Đang có sẵn ma trận cho: **{target_exam}**")
+            if st.button(f"🗑️ Xóa ma trận hiện tại của {target_exam}"):
+                st.session_state['matrices_dict'][target_exam] = ""
+                st.success(f"Đã xóa ma trận của {target_exam} thành công! Thầy/cô có thể tải ma trận mới lên.")
+                st.rerun()
+        
+        # Ô tải file hoặc dán ma trận
+        up_file = st.file_uploader(f"Tải lên file ma trận cho {target_exam} (.txt)", type=["txt"])
+        matrix_input = st.text_area(f"Hoặc dán nội dung ma trận đặc tả cho {target_exam}:", value=current_matrix if not current_matrix.startswith("File") else "")
+        
+        if st.button("💾 Lưu ma trận này vào hệ thống"):
+            final_content = matrix_input
+            if up_file is not None:
+                try:
+                    final_content = up_file.read().decode("utf-8")
+                except:
+                    final_content = "Đã nhận file ma trận tải lên."
+            
+            st.session_state['matrices_dict'][target_exam] = final_content
+            st.success(f"Đã lưu thành công ma trận cho **{target_exam}**! Gemini sẽ bám sát ma trận này để ra đề.")
+            
+    elif teacher_pass:
+        st.error("❌ Sai mật mã giáo viên! Học sinh không thể thay đổi ma trận.")
     
-    matrix_text_input = ""
-    if matrix_file is not None:
-        # Đọc nội dung file text/đọc nhanh
-        try:
-            matrix_text_input = matrix_file.read().decode("utf-8")
-            st.success("Đã tải lên ma trận thành công!")
-        except:
-            # Phòng hờ trường hợp file docx/pdf cần đọc thô
-            matrix_text_input = "Đã nhận file ma trận từ giáo viên."
-    
-    # Hoặc ô nhập văn bản ma trận trực tiếp
-    matrix_note = st.text_area("Hoặc dán nội dung ma trận / cấu trúc đề vào đây:", placeholder="Ví dụ: Phần I gồm 16 câu nhận biết-thông hiểu chương Dao động cơ...")
-    
+    # Lưu lựa chọn kỳ thi của học sinh vào phiên làm việc
     if exam_type != "-- Chọn kỳ thi --":
+        st.session_state['selected_exam'] = exam_type
         st.info(f"Đã chọn kỳ thi: **{exam_type}**. Vui lòng chuyển sang **Tab 2** để chọn phần ôn tập!")
 
 with tab2:
-    st.subheader("Chọn cấu trúc phần ôn tập:")
-    section = st.radio(
-        "Hình thức:",
-        [
-            "Phần I - Trắc nghiệm nhiều lựa chọn (16 câu)",
-            "Phần II – Trắc nghiệm đúng sai (3 câu)",
-            "Phần III – Trắc nghiệm trả lời ngắn (6 câu)",
-            "Toàn bộ đề kiểm tra (Đầy đủ 3 phần)"
-        ]
-    )
-    
-    if st.button("🚀 Tạo đề ôn tập bám sát ma trận bằng AI"):
-        with st.spinner("🤖 AI đang đọc ma trận và biên soạn đề ôn tập riêng cho em..."):
-            # Tổng hợp thông tin ma trận giáo viên đưa vào prompt gửi cho Gemini
-            full_matrix_content = matrix_text_input if matrix_text_input else matrix_note
-            
-            prompt = f"""
-            Bạn là một giáo viên Vật lý 12 chuyên nghiệp. 
-            Dựa vào ma trận đề kiểm tra sau đây:
-            ---
-            {full_matrix_content}
-            ---
-            Hãy ra một đề ôn tập cho bài {exam_type}, phần {section}. 
-            Đề phải bám sát chính xác các mức độ nhận thức, số lượng câu hỏi và nội dung trong ma trận trên.
-            """
-            
-            response = model.generate_content(prompt)
-            st.session_state['de_thi'] = response.text
-            
-        st.markdown("### 📋 Đề Ôn Tập Của Em (Bám sát ma trận):")
-        st.write(st.session_state.get('de_thi', ''))
+    current_exam_chosen = st.session_state.get('selected_exam', '-- Chọn kỳ thi --')
+    if current_exam_chosen == '-- Chọn kỳ thi --':
+        st.warning("⚠️ Em chưa chọn kỳ thi ở Tab 1! Vui lòng quay lại Tab 1 để chọn kỳ thi trước.")
+    else:
+        st.write(f"Đang ôn tập cho: **{current_exam_chosen}**")
         
-        st.divider()
-        if st.button("📌 Xem kết quả và Hướng dẫn giải"):
-            st.success("Hệ thống đã ghi nhận!")
-            st.markdown("### 🔍 Phân tích đáp án & Lời giải chi tiết từ AI:")
+        # Kiểm tra xem kỳ này đã có ma trận chưa
+        active_matrix = st.session_state['matrices_dict'].get(current_exam_chosen, "")
+        if not active_matrix:
+            st.warning(f"⚠️ Lưu ý: Giáo viên chưa cập nhật ma trận cho kỳ **{current_exam_chosen}**. Gemini sẽ ra đề theo chuẩn chung của Bộ GD&ĐT.")
+        
+        section = st.radio(
+            "Chọn hình thức ôn tập:",
+            [
+                "Phần I - Trắc nghiệm nhiều lựa chọn (16 câu)",
+                "Phần II – Trắc nghiệm đúng sai (3 câu)",
+                "Phần III – Trắc nghiệm trả lời ngắn (6 câu)",
+                "Toàn bộ đề kiểm tra (Đầy đủ 3 phần)"
+            ]
+        )
+        
+        if st.button("🚀 Tạo đề ôn tập bám sát ma trận bằng AI"):
+            with st.spinner("🤖 AI đang đọc ma trận riêng của kỳ thi này và biên soạn đề..."):
+                prompt = f"""
+                Bạn là một giáo viên Vật lý 12 chuyên nghiệp.
+                Đây là ma trận đặc tả dành riêng cho bài {current_exam_chosen}:
+                ---
+                {active_matrix if active_matrix else "Ma trận tiêu chuẩn Vật lý 12 định hướng mới"}
+                ---
+                Hãy ra một đề ôn tập cho phần {section}. 
+                Đề phải bám sát chính xác các mức độ nhận thức, số lượng câu hỏi quy định trong ma trận trên.
+                """
+                
+                response = model.generate_content(prompt)
+                st.session_state['de_thi'] = response.text
+                
+            st.markdown("### 📋 Đề Ôn Tập Của Em:")
+            st.write(st.session_state.get('de_thi', ''))
             
-            explain_prompt = f"Dựa trên đề thi vừa tạo dựa theo ma trận, hãy cung cấp bảng đáp án chi tiết và hướng dẫn giải thích từng câu thật dễ hiểu cho học sinh lớp 12."
-            explanation = model.generate_content(explain_prompt)
-            st.write(explanation.text)
-            
-            # Góc thắc mắc cùng chatbot
-            st.markdown("---")
-            st.subheader("💬 Góc thắc mắc với AI")
-            user_q = st.text_input("Nếu em có thắc mắc với câu nào, hãy viết vào đây:")
-            if user_q:
-                ans = model.generate_content(f"Giải đáp thắc mắc môn Vật lý cho học sinh: {user_q}")
-                st.write(ans.text)
+            st.divider()
+            if st.button("📌 Xem kết quả và Hướng dẫn giải"):
+                st.success("Hệ thống đã ghi nhận!")
+                st.markdown("### 🔍 Phân tích đáp án & Lời giải chi tiết từ AI:")
+                
+                explain_prompt = f"Dựa trên đề thi vừa tạo, hãy cung cấp bảng đáp án chi tiết và hướng dẫn giải thích từng câu thật dễ hiểu cho học sinh lớp 12."
+                explanation = model.generate_content(explain_prompt)
+                st.write(explanation.text)
+                
+                # Góc thắc mắc cùng chatbot
+                st.markdown("---")
+                st.subheader("💬 Góc thắc mắc với AI")
+                user_q = st.text_input("Nếu em có thắc mắc với câu nào, hãy viết vào đây:")
+                if user_q:
+                    ans = model.generate_content(f"Giải đáp thắc mắc môn Vật lý cho học sinh: {user_q}")
+                    st.write(ans.text)
 
 with tab3:
     st.subheader("📊 Theo dõi sự tiến bộ")
@@ -111,7 +149,7 @@ with tab3:
     if role == "Học sinh":
         st.info(f"Lịch sử ôn tập của học sinh: **{name} ({cl})**.")
     else:
-        password = st.text_input("Nhập mật mã giáo viên:", type="password")
+        password = st.text_input("Nhập mật mã quản trị giáo viên:", type="password", key="teacher_history_pass")
         if password == "vatly@123":
             st.success("Đăng nhập quyền Giáo viên thành công!")
             st.write("📋 Tổng hợp lịch sử luyện tập của toàn bộ học sinh lớp 12.")
