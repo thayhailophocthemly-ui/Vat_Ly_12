@@ -163,7 +163,7 @@ with tab2:
                 user_answers[idx] = st.radio(f"Chọn đáp án câu {idx+1}:", q.get('options'), key=f"q_{idx}")
                 st.divider()
                 
-            if st.button("📌 Nộp bài và Xem kết quả"):
+            if st.button("📌 Nộp bài và Xem kết quả",type="primary"):
                 score = 0
                 total = len(st.session_state['quiz_data'])
                 for idx, q in enumerate(st.session_state['quiz_data']):
