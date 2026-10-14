@@ -16,6 +16,7 @@ API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-3.5-flash-lite')
 
+
 # Khởi tạo Session State lưu ma trận và trạng thái hệ thống
 if 'matrices_dict' not in st.session_state:
     st.session_state['matrices_dict'] = {
@@ -148,6 +149,7 @@ with tab2:
                 
                 LƯU Ý CỰC KỲ QUAN TRỌNG VỀ TRÌNH BÀY:
                 1. Không dùng mã lệnh LaTeX phức tạp như \\frac, \\text. Hãy dùng Unicode symbol như Δ, λ và dấu / cho phân số.
+                2. QUY ĐỊNH BẮT BUỘC VỀ ĐÁP ÁN (options): Trong mảng options của Phần I, mỗi phương án BẮT BUỘC phải bắt đầu bằng định dạng chữ cái kèm dấu chấm (Ví dụ: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]).
                 
                 BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown hay ```json), bao gồm danh sách các câu hỏi theo đúng cấu trúc sau:
 
@@ -196,7 +198,7 @@ with tab2:
                 try:
                     clean_text = response.text.strip().replace("```json", "").replace("```", "")
                     st.session_state['quiz_data'] = json.loads(clean_text)
-                    st.session_state['submitted'] = False  # Reset trạng thái nộp bài
+                    st.session_state['submitted'] = False
                     if 'chat_session' in st.session_state:
                         del st.session_state['chat_session']
                     if 'messages' in st.session_state:
@@ -240,7 +242,7 @@ with tab2:
                     user_answers[idx] = st.text_input(f"Điền kết quả số của em cho câu {idx+1}:", key=f"q_{idx}_short", placeholder="Ví dụ: 12.5 hoặc -3")
                     st.divider()
                 
-            # NÚT NỘP BÀI VÀ XEM KẾT QUẢ (CƠ CHẾ LƯU TRẠNG THÁI ST.SESSION_STATE)
+            # NÚT NỘP BÀI VÀ XEM KẾT QUẢ
             if st.button("📌 Nộp bài và Xem kết quả"):
                 st.session_state['submitted'] = True
                 st.session_state['user_answers'] = user_answers
@@ -257,12 +259,17 @@ with tab2:
                     q_type = q.get('type', 'part1')
                     
                     if q_type == 'part1':
-                        chosen = saved_answers.get(idx, "")
-                        correct_ans = q.get('answer', '').strip().upper()
-                        is_correct = chosen and chosen.strip().upper().startswith(correct_ans)
+                        chosen = str(saved_answers.get(idx, ""))
+                        correct_ans = str(q.get('answer', '')).strip().upper() # Ví dụ: "A"
+                        
+                        # Trích xuất chữ cái đầu tiên từ lựa chọn của học sinh (Ví dụ: "A. Nội dung" -> lấy "A")
+                        user_choice_letter = chosen.strip()[:1].upper()
+                        
+                        is_correct = (user_choice_letter == correct_ans)
                         if is_correct:
                             correct_count += 1
-                        st.write(f"**Câu {idx+1}:** {'✅ Đúng' if is_correct else '❌ Sai'} (Đáp án đúng: **{correct_ans}**)")
+                            
+                        st.write(f"**Câu {idx+1}:** {'✅ Đúng' if is_correct else '❌ Sai'} (Đáp án học sinh chọn: **{user_choice_letter}** | Đáp án đúng: **{correct_ans}**)")
                         st.write(f"👉 *Giải thích:* {q.get('explanation')}")
                     
                     elif q_type == 'part2':
@@ -334,7 +341,7 @@ with tab2:
 
             col_mic, col_space = st.columns([1, 4])
             with col_mic:
-                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_safe_vfix')
+                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_safe_vfix2')
 
             if audio_info is not None:
                 audio_bytes = audio_info.get('bytes')
@@ -381,7 +388,7 @@ with tab2:
 
 with tab3:
     st.subheader("📊 Theo dõi và đánh giá sự tiến bộ")
-    role = st.radio("Bạn là ai?", ["Học sinh", "Giáo viên"])
+    role = st.radio("Bạn là ai?", ["Học sinh", " Giáo viên"])
     if role == "Học sinh":
         st.info(f"Lịch sử ôn tập của học sinh: **{name} ({cl})**. Hệ thống ghi nhận mọi nỗ lực học tập của em qua các lần làm bài.")
     else:
