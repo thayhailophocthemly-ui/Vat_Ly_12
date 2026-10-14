@@ -119,7 +119,7 @@ with tab2:
             ]
         )
         
-        if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
+        if st.button("🚀 **Bắt đầu tạo đề tương tác bám sát ma trận**", type="primary"):
             with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa..."):
                 active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
                 prompt = f"""
