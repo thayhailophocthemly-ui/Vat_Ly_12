@@ -61,7 +61,7 @@ with tab1:
     st.subheader("🔒 Khu vực Quản trị Giáo viên (Cấu hình Ma trận)")
     teacher_pass = st.text_input("Nhập mật mã giáo viên để cấu hình:", type="password")
     
-    if teacher_pass == "vatly123": # Mật mã giáo viên
+    if teacher_pass == "vatly123":
         st.success("✅ Xác thực quyền Giáo viên thành công!")
         target_exam = st.selectbox("Chọn kỳ thi cập nhật ma trận:", ["Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"])
         
@@ -119,7 +119,7 @@ with tab2:
             ]
         )
         
-        # Tùy biến giao diện nút bấm nổi bật, chữ đậm màu xanh
+        # CSS tùy biến nút bấm nổi bật
         st.markdown("""
             <style>
             div.stButton > button:first-child {
@@ -143,7 +143,6 @@ with tab2:
             with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa cấu trúc Bộ GD&ĐT..."):
                 active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
                 
-                # Prompt chuẩn hóa 3 phần đúng quy định mới
                 prompt = f"""
                 Bạn là chuyên gia ra đề Vật lý 12. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
                 
@@ -197,6 +196,7 @@ with tab2:
                 try:
                     clean_text = response.text.strip().replace("```json", "").replace("```", "")
                     st.session_state['quiz_data'] = json.loads(clean_text)
+                    st.session_state['submitted'] = False  # Reset trạng thái nộp bài
                     if 'chat_session' in st.session_state:
                         del st.session_state['chat_session']
                     if 'messages' in st.session_state:
@@ -205,20 +205,21 @@ with tab2:
                     st.error("AI đang bận hoặc định dạng phản hồi chưa khớp, vui lòng bấm tạo lại đề giúp em nhé!")
                     st.session_state['quiz_data'] = []
 
-        # Hiển thị bài làm tương tác đa dạng dạng câu hỏi
+        # Hiển thị bài làm tương tác
         if 'quiz_data' in st.session_state and st.session_state['quiz_data']:
+            if 'submitted' not in st.session_state:
+                st.session_state['submitted'] = False
+
             user_answers = {}
             
             for idx, q in enumerate(st.session_state['quiz_data']):
                 q_type = q.get('type', 'part1')
                 
-                # --- DẠNG 1: TRẮC NGHIỆM NHIỀU LỰA CHỌN ---
                 if q_type == 'part1':
                     st.markdown(f"**Câu {q.get('id', idx+1)}:** {q.get('question')}")
                     user_answers[idx] = st.radio(f"Chọn đáp án câu {idx+1}:", q.get('options', []), key=f"q_{idx}")
                     st.divider()
                 
-                # --- DẠNG 2: TRẮC NGHIỆM ĐÚNG/SAI (CHUẨN BỘ GD&ĐT) ---
                 elif q_type == 'part2':
                     st.markdown(f"**Câu {q.get('id', idx+1)} (Đúng/Sai):** {q.get('stem')}")
                     sub_ans = {}
@@ -234,16 +235,21 @@ with tab2:
                     user_answers[idx] = sub_ans
                     st.divider()
                 
-                # --- DẠNG 3: TRẮC NGHIỆM TRẢ LỜI NGẮN ---
                 elif q_type == 'part3':
                     st.markdown(f"**Câu {q.get('id', idx+1)} (Trả lời ngắn):** {q.get('question')}")
                     user_answers[idx] = st.text_input(f"Điền kết quả số của em cho câu {idx+1}:", key=f"q_{idx}_short", placeholder="Ví dụ: 12.5 hoặc -3")
                     st.divider()
                 
-            # NÚT NỘP BÀI VÀ CHẤM ĐIỂM
+            # NÚT NỘP BÀI VÀ XEM KẾT QUẢ (CƠ CHẾ LƯU TRẠNG THÁI ST.SESSION_STATE)
             if st.button("📌 Nộp bài và Xem kết quả"):
+                st.session_state['submitted'] = True
+                st.session_state['user_answers'] = user_answers
+
+            # Hiển thị kết quả khi đã bấm nộp bài
+            if st.session_state.get('submitted', False):
                 correct_count = 0
                 total_items = len(st.session_state['quiz_data'])
+                saved_answers = st.session_state.get('user_answers', {})
                 
                 st.markdown("### 🔍 Hướng dẫn giải chi tiết & Kết quả:")
                 
@@ -251,9 +257,9 @@ with tab2:
                     q_type = q.get('type', 'part1')
                     
                     if q_type == 'part1':
-                        chosen = user_answers.get(idx, "")
-                        correct_ans = q.get('answer', '')
-                        is_correct = chosen and chosen.startswith(correct_ans)
+                        chosen = saved_answers.get(idx, "")
+                        correct_ans = q.get('answer', '').strip().upper()
+                        is_correct = chosen and chosen.strip().upper().startswith(correct_ans)
                         if is_correct:
                             correct_count += 1
                         st.write(f"**Câu {idx+1}:** {'✅ Đúng' if is_correct else '❌ Sai'} (Đáp án đúng: **{correct_ans}**)")
@@ -261,17 +267,22 @@ with tab2:
                     
                     elif q_type == 'part2':
                         st.write(f"**Câu {idx+1} (Đúng/Sai):** {q.get('stem')}")
-                        sub_ans = user_answers.get(idx, {})
+                        sub_ans = saved_answers.get(idx, {})
+                        sub_correct_all = True
                         for sub in q.get('sub_questions', []):
                             sub_id = sub.get('id')
                             user_sub_ans = sub_ans.get(sub_id, "Chưa chọn")
                             correct_sub_ans = sub.get('answer')
                             is_sub_correct = (user_sub_ans == correct_sub_ans)
+                            if not is_sub_correct:
+                                sub_correct_all = False
                             st.write(f"- Ý {sub_id}): Em chọn **{user_sub_ans}** | Đáp án đúng: **{correct_sub_ans}** {'✅' if is_sub_correct else '❌'}")
                             st.write(f"  *Giải thích:* {sub.get('explanation')}")
+                        if sub_correct_all:
+                            correct_count += 1
                     
                     elif q_type == 'part3':
-                        user_short = str(user_answers.get(idx, "")).strip()
+                        user_short = str(saved_answers.get(idx, "")).strip()
                         correct_short = str(q.get('answer', '')).strip()
                         is_short_correct = (user_short == correct_short)
                         if is_short_correct:
@@ -284,20 +295,22 @@ with tab2:
                 final_score = round((correct_count / total_items) * 10, 2)
                 st.success(f"🎉 Em đã hoàn thành bài! Điểm tổng kết: **{final_score} / 10 điểm**.")
 
-                # Tự động lưu vào Google Sheets
-                try:
-                    scope = ["[https://spreadsheets.google.com/feeds](https://spreadsheets.google.com/feeds)", "[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)"]
-                    creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
-                    client = gspread.authorize(creds)
-                    sheet = client.open("LichSuOnTapVatLy12").sheet1
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    sheet.append_row([now_str, name, cl, current_exam, section, final_score])
-                    st.balloons()
-                    st.toast("✅ Đã tự động lưu kết quả vào hệ thống!", icon="📊")
-                except Exception as e:
-                    pass
+                # Tự động lưu vào Google Sheets (Chỉ lưu 1 lần khi nộp)
+                if not st.session_state.get('saved_to_sheets', False):
+                    try:
+                        scope = ["[https://spreadsheets.google.com/feeds](https://spreadsheets.google.com/feeds)", "[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)"]
+                        creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
+                        client = gspread.authorize(creds)
+                        sheet = client.open("LichSuOnTapVatLy12").sheet1
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        sheet.append_row([now_str, name, cl, current_exam, section, final_score])
+                        st.session_state['saved_to_sheets'] = True
+                        st.balloons()
+                        st.toast("✅ Đã tự động lưu kết quả vào hệ thống!", icon="📊")
+                    except Exception as e:
+                        pass
 
-            # --- CỬA SỔ CHAT ĐA LƯỢT (THU ÂM TRỰC TIẾP AN TOÀN, CHỐNG LẶP LẠI) ---
+            # --- CỬA SỔ CHAT ĐA LƯỢT (THU ÂM TRỰC TIẾP AN TOÀN) ---
             st.markdown("---")
             st.subheader("💬 Góc thắc mắc cùng AI (Hỏi - Đáp linh hoạt)")
             st.markdown("_Em có thể gõ chữ hoặc bấm nút thu âm trực tiếp để AI lắng nghe và giải đáp ngay lập tức!_")
@@ -321,7 +334,7 @@ with tab2:
 
             col_mic, col_space = st.columns([1, 4])
             with col_mic:
-                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_safe_vfinal')
+                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_safe_vfix')
 
             if audio_info is not None:
                 audio_bytes = audio_info.get('bytes')
