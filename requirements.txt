@@ -1,8 +1,8 @@
 streamlit
 google-generativeai
-python-docx
-docx
-streamlit-mic-recorder
-gspread
-oauth2client
-pandasstreamlit
+#python-docx
+#docx
+#streamlit-mic-recorder
+#gspread
+#oauth2client
+#pandasstreamlit
