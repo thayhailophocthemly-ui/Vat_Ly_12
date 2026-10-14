@@ -194,7 +194,7 @@ with tab2:
                 except Exception as e:
                     st.warning(f"⚠️ Lưu ý: Chưa kết nối thành công file Google Sheets, nhưng bài làm đã được chấm xong! Chi tiết: {e}")
 
-            # --- CỬA SỔ CHAT ĐA LƯỢT (GỬI ÂM THANH TRỰC TIẾP CHO AI KHÔNG QUA Ô TEXT) ---
+# --- CỬA SỔ CHAT ĐA LƯỢT (THU ÂM AN TOÀN, CHỐNG LẶP LẠI) ---
             st.markdown("---")
             st.subheader("💬 Góc thắc mắc cùng AI (Hỏi - Đáp linh hoạt)")
             st.markdown("_Em có thể gõ chữ hoặc bấm nút thu âm trực tiếp để AI lắng nghe và giải đáp ngay lập tức!_")
@@ -210,41 +210,50 @@ with tab2:
             if 'messages' not in st.session_state:
                 st.session_state['messages'] = []
 
+            # Khởi tạo biến nhớ ID đoạn âm thanh đã xử lý để chống lặp
+            if 'last_processed_audio_hash' not in st.session_state:
+                st.session_state['last_processed_audio_hash'] = None
+
             # Hiển thị lịch sử trò chuyện
             for message in st.session_state['messages']:
                 with st.chat_message(message["role"]):
                     st.markdown(message["content"])
 
-            # Bố cục giao diện: Nút thu âm gọn gàng bên trái
+            # Giao diện nút thu âm
             col_mic, col_space = st.columns([1, 4])
             with col_mic:
-                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_direct_audio_v4')
+                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_safe_v5')
 
-            # Xử lý trực tiếp khi học sinh thu âm xong (Gửi thẳng audio cho Gemini)
+            # Xử lý âm thanh có cơ chế kiểm tra chống lặp
             if audio_info is not None:
                 audio_bytes = audio_info.get('bytes')
                 if audio_bytes:
-                    # Ghi nhận hành động học sinh gửi voice vào khung chat
-                    audio_label = "🎤 *(Học sinh đã gửi một câu hỏi bằng giọng nói)*"
-                    st.session_state['messages'].append({"role": "user", "content": audio_label})
-                    with st.chat_message("user"):
-                        st.markdown(audio_label)
+                    # Tạo mã định danh (độ dài bytes) cho đoạn âm thanh vừa thu để kiểm tra trùng lặp
+                    current_audio_hash = hash(audio_bytes)
                     
-                    with st.chat_message("assistant"):
-                        with st.spinner("🤖 AI đang lắng nghe câu hỏi và suy nghĩ giải đáp..."):
-                            try:
-                                # Đóng gói dữ liệu âm thanh dạng bytes gửi trực tiếp cho Gemini
-                                audio_part = {"mime_type": "audio/wav", "data": audio_bytes}
-                                chat_response = st.session_state['chat_session'].send_message([
-                                    "Học sinh vừa đặt câu hỏi bằng giọng nói liên quan đến đề thi Vật lý 12 ở trên, hãy lắng nghe và giải đáp thật chi tiết, dễ hiểu:",
-                                    audio_part
-                                ])
-                                ai_reply = chat_response.text
-                                st.markdown(ai_reply)
-                                st.session_state['messages'].append({"role": "assistant", "content": ai_reply})
-                                st.rerun() # Tải lại trang để đồng bộ lịch sử chat
-                            except Exception as e:
-                                st.error(f"Đã xảy ra lỗi khi xử lý âm thanh: {e}")
+                    # Chỉ xử lý nếu đây là đoạn ghi âm MỚI (chưa từng được xử lý trước đó)
+                    if current_audio_hash != st.session_state['last_processed_audio_hash']:
+                        st.session_state['last_processed_audio_hash'] = current_audio_hash  # Đánh dấu đã xử lý
+                        
+                        audio_label = "🎤 *(Học sinh đã gửi một câu hỏi bằng giọng nói)*"
+                        st.session_state['messages'].append({"role": "user", "content": audio_label})
+                        with st.chat_message("user"):
+                            st.markdown(audio_label)
+                        
+                        with st.chat_message("assistant"):
+                            with st.spinner("🤖 AI đang lắng nghe câu hỏi và suy nghĩ giải đáp..."):
+                                try:
+                                    audio_part = {"mime_type": "audio/wav", "data": audio_bytes}
+                                    chat_response = st.session_state['chat_session'].send_message([
+                                        "Học sinh vừa đặt câu hỏi bằng giọng nói liên quan đến đề thi Vật lý 12 ở trên, hãy lắng nghe và giải đáp thật chi tiết, dễ hiểu:",
+                                        audio_part
+                                    ])
+                                    ai_reply = chat_response.text
+                                    st.markdown(ai_reply)
+                                    st.session_state['messages'].append({"role": "assistant", "content": ai_reply})
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Đã xảy ra lỗi khi xử lý âm thanh: {e}")
 
             # Ô nhập chat gõ chữ truyền thống phía dưới
             user_prompt = st.chat_input("Hoặc nhập câu hỏi thắc mắc của em tại đây...")
