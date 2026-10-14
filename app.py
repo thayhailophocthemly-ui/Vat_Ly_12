@@ -1,6 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
-from docx import Document
+import docx
 import json
 from datetime import datetime
 from streamlit_mic_recorder import mic_recorder
@@ -34,7 +34,7 @@ if 'matrix_parts' not in st.session_state:
     }
 
 st.title("⚡ HỆ THỐNG ÔN TẬP VẬT LÝ 12 THÔNG MINH")
-st.write("Ứng dụng tương tác thông minh hỗ trợ học sinh ôn tập bám sát ma trận đặc tả.")
+st.write("Ứng dụng tương tác thông minh hỗ trợ học sinh ôn tập bám sát ma trận đặc tả chuẩn mới.")
 
 # Sidebar đăng ký thông tin học sinh
 st.sidebar.header("👤 Thông tin học sinh")
@@ -119,34 +119,84 @@ with tab2:
             ]
         )
         
-        if st.button("🚀 **Bắt đầu tạo đề tương tác bám sát ma trận**", type="primary"):
-            with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa..."):
+        # Tùy biến giao diện nút bấm nổi bật, chữ đậm màu xanh
+        st.markdown("""
+            <style>
+            div.stButton > button:first-child {
+                background-color: #0066cc;
+                color: white;
+                font-weight: bold;
+                font-size: 18px;
+                padding: 10px 24px;
+                border-radius: 8px;
+                border: none;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            div.stButton > button:first-child:hover {
+                background-color: #004080;
+                color: #ffffff;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
+            with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa cấu trúc Bộ GD&ĐT..."):
                 active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
+                
+                # Prompt chuẩn hóa 3 phần đúng quy định mới
                 prompt = f"""
                 Bạn là chuyên gia ra đề Vật lý 12. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
                 
                 LƯU Ý CỰC KỲ QUAN TRỌNG VỀ TRÌNH BÀY:
-                1. Trong phần đáp án (options) và câu hỏi, tuyệt đối KHÔNG dùng mã lệnh LaTeX phức tạp như \\frac, \\text. Hãy dùng dấu / cho phân số (ví dụ: (p.V)/T).
-                2. Đối với các đại lượng vật lý, BẮT BUỘC phải dùng đúng kí hiệu kí tự đặc biệt (Unicode symbols) thay vì viết chữ cái thô. Cụ thể: 
-                   - Dùng kí hiệu 'Δ' (Delta hoa) cho độ biến thiên (ví dụ: Δt, ΔU thay vì viết Delta(t) hay Delta(U)).
-                   - Dùng kí hiệu 'λ' (Lambda thường) hoặc 'Λ' cho bước sóng hoặc hệ số (ví dụ: λ.m thay vì viết lambda.m).
+                1. Không dùng mã lệnh LaTeX phức tạp như \\frac, \\text. Hãy dùng Unicode symbol như Δ, λ và dấu / cho phân số.
                 
-                BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown hay ```json), bao gồm một danh sách các câu hỏi theo cấu trúc chuẩn sau:
+                BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown hay ```json), bao gồm danh sách các câu hỏi theo đúng cấu trúc sau:
+
+                1. Nếu chọn Phần I (Trắc nghiệm nhiều lựa chọn):
                 [
                   {{
+                    "type": "part1",
                     "id": 1,
                     "question": "Nội dung câu hỏi...",
                     "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
                     "answer": "A",
-                    "explanation": "Hướng dẫn giải chi tiết..."
+                    "explanation": "Hướng dẫn giải..."
                   }}
                 ]
+
+                2. Nếu chọn Phần II (Trắc nghiệm đúng sai - Đúng chuẩn Bộ GD&ĐT gồm 4 ý a, b, c, d):
+                [
+                  {{
+                    "type": "part2",
+                    "id": 1,
+                    "stem": "Đoạn văn cảnh / Ngữ cảnh bài tập...",
+                    "sub_questions": [
+                      {{"id": "a", "text": "Phát biểu a...", "answer": "Đúng", "explanation": "Giải thích a..."}},
+                      {{"id": "b", "text": "Phát biểu b...", "answer": "Sai", "explanation": "Giải thích b..."}},
+                      {{"id": "c", "text": "Phát biểu c...", "answer": "Đúng", "explanation": "Giải thích c..."}},
+                      {{"id": "d", "text": "Phát biểu d...", "answer": "Sai", "explanation": "Giải thích d..."}}
+                    ]
+                  }}
+                ]
+
+                3. Nếu chọn Phần III (Trắc nghiệm trả lời ngắn):
+                [
+                  {{
+                    "type": "part3",
+                    "id": 1,
+                    "question": "Nội dung câu hỏi bài tập...",
+                    "answer": "12.5",
+                    "explanation": "Lời giải chi tiết và con số đáp án..."
+                  }}
+                ]
+
+                4. Nếu chọn 'Toàn bộ đề kiểm tra': Trả về mảng gồm đủ các câu hỏi theo đúng 3 loại cấu trúc (part1, part2, part3) ở trên.
                 """
+                
                 response = model.generate_content(prompt)
                 try:
                     clean_text = response.text.strip().replace("```json", "").replace("```", "")
                     st.session_state['quiz_data'] = json.loads(clean_text)
-                    # Reset lại phiên chat mới khi có đề thi mới
                     if 'chat_session' in st.session_state:
                         del st.session_state['chat_session']
                     if 'messages' in st.session_state:
@@ -155,51 +205,103 @@ with tab2:
                     st.error("AI đang bận hoặc định dạng phản hồi chưa khớp, vui lòng bấm tạo lại đề giúp em nhé!")
                     st.session_state['quiz_data'] = []
 
-        # Hiển thị phần làm bài tương tác nếu đã có dữ liệu đề
+        # Hiển thị bài làm tương tác đa dạng dạng câu hỏi
         if 'quiz_data' in st.session_state and st.session_state['quiz_data']:
             user_answers = {}
+            
             for idx, q in enumerate(st.session_state['quiz_data']):
-                st.markdown(f"**Câu {q.get('id', idx+1)}:** {q.get('question')}")
-                user_answers[idx] = st.radio(f"Chọn đáp án câu {idx+1}:", q.get('options'), key=f"q_{idx}")
-                st.divider()
+                q_type = q.get('type', 'part1')
                 
-            if st.button("📌 Nộp bài và Xem kết quả",type="primary"):
-                score = 0
-                total = len(st.session_state['quiz_data'])
+                # --- DẠNG 1: TRẮC NGHIỆM NHIỀU LỰA CHỌN ---
+                if q_type == 'part1':
+                    st.markdown(f"**Câu {q.get('id', idx+1)}:** {q.get('question')}")
+                    user_answers[idx] = st.radio(f"Chọn đáp án câu {idx+1}:", q.get('options', []), key=f"q_{idx}")
+                    st.divider()
+                
+                # --- DẠNG 2: TRẮC NGHIỆM ĐÚNG/SAI (CHUẨN BỘ GD&ĐT) ---
+                elif q_type == 'part2':
+                    st.markdown(f"**Câu {q.get('id', idx+1)} (Đúng/Sai):** {q.get('stem')}")
+                    sub_ans = {}
+                    for sub in q.get('sub_questions', []):
+                        sub_id = sub.get('id')
+                        sub_text = sub.get('text')
+                        sub_ans[sub_id] = st.radio(
+                            f"Ý {sub_id}) {sub_text}",
+                            ["Chưa chọn", "Đúng", "Sai"],
+                            horizontal=True,
+                            key=f"q_{idx}_{sub_id}"
+                        )
+                    user_answers[idx] = sub_ans
+                    st.divider()
+                
+                # --- DẠNG 3: TRẮC NGHIỆM TRẢ LỜI NGẮN ---
+                elif q_type == 'part3':
+                    st.markdown(f"**Câu {q.get('id', idx+1)} (Trả lời ngắn):** {q.get('question')}")
+                    user_answers[idx] = st.text_input(f"Điền kết quả số của em cho câu {idx+1}:", key=f"q_{idx}_short", placeholder="Ví dụ: 12.5 hoặc -3")
+                    st.divider()
+                
+            # NÚT NỘP BÀI VÀ CHẤM ĐIỂM
+            if st.button("📌 Nộp bài và Xem kết quả"):
+                correct_count = 0
+                total_items = len(st.session_state['quiz_data'])
+                
+                st.markdown("### 🔍 Hướng dẫn giải chi tiết & Kết quả:")
+                
                 for idx, q in enumerate(st.session_state['quiz_data']):
-                    chosen = user_answers[idx]
-                    if chosen and chosen.startswith(q.get('answer')):
-                        score += 1
+                    q_type = q.get('type', 'part1')
+                    
+                    if q_type == 'part1':
+                        chosen = user_answers.get(idx, "")
+                        correct_ans = q.get('answer', '')
+                        is_correct = chosen and chosen.startswith(correct_ans)
+                        if is_correct:
+                            correct_count += 1
+                        st.write(f"**Câu {idx+1}:** {'✅ Đúng' if is_correct else '❌ Sai'} (Đáp án đúng: **{correct_ans}**)")
+                        st.write(f"👉 *Giải thích:* {q.get('explanation')}")
+                    
+                    elif q_type == 'part2':
+                        st.write(f"**Câu {idx+1} (Đúng/Sai):** {q.get('stem')}")
+                        sub_ans = user_answers.get(idx, {})
+                        for sub in q.get('sub_questions', []):
+                            sub_id = sub.get('id')
+                            user_sub_ans = sub_ans.get(sub_id, "Chưa chọn")
+                            correct_sub_ans = sub.get('answer')
+                            is_sub_correct = (user_sub_ans == correct_sub_ans)
+                            st.write(f"- Ý {sub_id}): Em chọn **{user_sub_ans}** | Đáp án đúng: **{correct_sub_ans}** {'✅' if is_sub_correct else '❌'}")
+                            st.write(f"  *Giải thích:* {sub.get('explanation')}")
+                    
+                    elif q_type == 'part3':
+                        user_short = str(user_answers.get(idx, "")).strip()
+                        correct_short = str(q.get('answer', '')).strip()
+                        is_short_correct = (user_short == correct_short)
+                        if is_short_correct:
+                            correct_count += 1
+                        st.write(f"**Câu {idx+1}:** Em điền **'{user_short}'** | Đáp án chuẩn: **'{correct_short}'** {'✅' if is_short_correct else '❌'}")
+                        st.write(f"👉 *Giải thích:* {q.get('explanation')}")
+                    
+                    st.divider()
                 
-                final_score = round((score / total) * 10, 2)
-                st.success(f"🎉 Em đã hoàn thành bài! Điểm số đạt được: **{final_score} / 10 điểm** ({score}/{total} câu đúng).")
-                
-                # Hiển thị giải thích chi tiết
-                st.markdown("### 🔍 Hướng dẫn giải chi tiết từng câu:")
-                for idx, q in enumerate(st.session_state['quiz_data']):
-                    st.write(f"**Câu {idx+1}:** Đáp án đúng là **{q.get('answer')}**. Giải thích: {q.get('explanation')}")
+                final_score = round((correct_count / total_items) * 10, 2)
+                st.success(f"🎉 Em đã hoàn thành bài! Điểm tổng kết: **{final_score} / 10 điểm**.")
 
-                # Tự động lưu kết quả vào Google Sheets
+                # Tự động lưu vào Google Sheets
                 try:
                     scope = ["[https://spreadsheets.google.com/feeds](https://spreadsheets.google.com/feeds)", "[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)"]
                     creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
                     client = gspread.authorize(creds)
                     sheet = client.open("LichSuOnTapVatLy12").sheet1
-                    
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    row_data = [now_str, name, cl, current_exam, section, final_score]
-                    sheet.append_row(row_data)
+                    sheet.append_row([now_str, name, cl, current_exam, section, final_score])
                     st.balloons()
-                    st.toast("✅ Đã tự động lưu kết quả vào hệ thống của giáo viên!", icon="📊")
+                    st.toast("✅ Đã tự động lưu kết quả vào hệ thống!", icon="📊")
                 except Exception as e:
-                    st.warning(f"⚠️ Lưu ý: Chưa kết nối thành công file Google Sheets, nhưng bài làm đã được chấm xong! Chi tiết: {e}")
+                    pass
 
-# --- CỬA SỔ CHAT ĐA LƯỢT (THU ÂM AN TOÀN, CHỐNG LẶP LẠI) ---
+            # --- CỬA SỔ CHAT ĐA LƯỢT (THU ÂM TRỰC TIẾP AN TOÀN, CHỐNG LẶP LẠI) ---
             st.markdown("---")
             st.subheader("💬 Góc thắc mắc cùng AI (Hỏi - Đáp linh hoạt)")
             st.markdown("_Em có thể gõ chữ hoặc bấm nút thu âm trực tiếp để AI lắng nghe và giải đáp ngay lập tức!_")
             
-            # Khởi tạo phiên chat đa lượt lưu ngữ cảnh đề thi
             if 'chat_session' not in st.session_state:
                 initial_context = f"Đây là đề thi Vật lý 12 học sinh vừa làm: {str(st.session_state.get('quiz_data', ''))}. Hãy đóng vai trò gia sư Vật lý thân thiện, kiên nhẫn giải đáp mọi thắc mắc liên tục cho học sinh."
                 st.session_state['chat_session'] = model.start_chat(history=[
@@ -210,30 +312,23 @@ with tab2:
             if 'messages' not in st.session_state:
                 st.session_state['messages'] = []
 
-            # Khởi tạo biến nhớ ID đoạn âm thanh đã xử lý để chống lặp
             if 'last_processed_audio_hash' not in st.session_state:
                 st.session_state['last_processed_audio_hash'] = None
 
-            # Hiển thị lịch sử trò chuyện
             for message in st.session_state['messages']:
                 with st.chat_message(message["role"]):
                     st.markdown(message["content"])
 
-            # Giao diện nút thu âm
             col_mic, col_space = st.columns([1, 4])
             with col_mic:
-                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_safe_v5')
+                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_safe_vfinal')
 
-            # Xử lý âm thanh có cơ chế kiểm tra chống lặp
             if audio_info is not None:
                 audio_bytes = audio_info.get('bytes')
                 if audio_bytes:
-                    # Tạo mã định danh (độ dài bytes) cho đoạn âm thanh vừa thu để kiểm tra trùng lặp
                     current_audio_hash = hash(audio_bytes)
-                    
-                    # Chỉ xử lý nếu đây là đoạn ghi âm MỚI (chưa từng được xử lý trước đó)
                     if current_audio_hash != st.session_state['last_processed_audio_hash']:
-                        st.session_state['last_processed_audio_hash'] = current_audio_hash  # Đánh dấu đã xử lý
+                        st.session_state['last_processed_audio_hash'] = current_audio_hash
                         
                         audio_label = "🎤 *(Học sinh đã gửi một câu hỏi bằng giọng nói)*"
                         st.session_state['messages'].append({"role": "user", "content": audio_label})
@@ -255,7 +350,6 @@ with tab2:
                                 except Exception as e:
                                     st.error(f"Đã xảy ra lỗi khi xử lý âm thanh: {e}")
 
-            # Ô nhập chat gõ chữ truyền thống phía dưới
             user_prompt = st.chat_input("Hoặc nhập câu hỏi thắc mắc của em tại đây...")
             if user_prompt:
                 st.session_state['messages'].append({"role": "user", "content": user_prompt})
@@ -271,6 +365,7 @@ with tab2:
                             st.session_state['messages'].append({"role": "assistant", "content": ai_reply})
                         except Exception as e:
                             st.error(f"Đã xảy ra lỗi khi trò chuyện với AI: {e}")
+
 with tab3:
     st.subheader("📊 Theo dõi và đánh giá sự tiến bộ")
     role = st.radio("Bạn là ai?", ["Học sinh", "Giáo viên"])
