@@ -125,7 +125,11 @@ with tab2:
                 prompt = f"""
                 Bạn là chuyên gia ra đề Vật lý 12. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
                 
-                LƯU Ý CỰC KỲ QUAN TRỌNG VỀ CÔNG THỨC: Trong phần đáp án (options), khi sử dụng các câu lệnh mã hóa LaTeX, các mã lệnh LaTeX phức tạp (như \\frac) thì hãy viết thành trực quan, dễ hiển thị trên web (Ví dụ: dùng dấu / cho phân số thay vì \\frac, viết là: (p.V)/T = hằng số thay vì \\frac{{p.V}}{{T}}). Sử dụng các kí hiệu biểu tượng thuộc Symbol như là Delta, Lamda, muy, ... 
+                LƯU Ý CỰC KỲ QUAN TRỌNG VỀ TRÌNH BÀY:
+                1. Trong phần đáp án (options) và câu hỏi, tuyệt đối KHÔNG dùng mã lệnh LaTeX phức tạp như \\frac, \\text. Hãy dùng dấu / cho phân số (ví dụ: (p.V)/T).
+                2. Đối với các đại lượng vật lý, BẮT BUỘC phải dùng đúng kí hiệu kí tự đặc biệt (Unicode symbols) thay vì viết chữ cái thô. Cụ thể: 
+                   - Dùng kí hiệu 'Δ' (Delta hoa) cho độ biến thiên (ví dụ: Δt, ΔU thay vì viết Delta(t) hay Delta(U)).
+                   - Dùng kí hiệu 'λ' (Lambda thường) hoặc 'Λ' cho bước sóng hoặc hệ số (ví dụ: λ.m thay vì viết lambda.m).
                 
                 BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown hay ```json), bao gồm một danh sách các câu hỏi theo cấu trúc chuẩn sau:
                 [
