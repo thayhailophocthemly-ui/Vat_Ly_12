@@ -125,7 +125,7 @@ with tab2:
                 prompt = f"""
                 Bạn là chuyên gia ra đề Vật lý 12. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
                 
-                LƯU Ý CỰC KỲ QUAN TRỌNG VỀ CÔNG THỨC: Trong phần đáp án (options), tuyệt đối KHÔNG sử dụng các câu lệnh mã hóa LaTeX phức tạp (như \\frac, \\text, v.v.). Hãy viết các công thức vật lý bằng ký hiệu thông thường, trực quan, dễ hiển thị trên web (Ví dụ: dùng dấu / cho phân số thay vì \\frac, viết là: (p.V)/T = hằng số thay vì \\frac{{p.V}}{{T}}).
+                LƯU Ý CỰC KỲ QUAN TRỌNG VỀ CÔNG THỨC: Trong phần đáp án (options), tuyệt đối sử dụng các câu lệnh mã hóa LaTeX, với các mã lệnh LaTeX phức tạp (như \\frac) thì hãy viết thành công thức vật lý bằng ký hiệu thông thường, trực quan, dễ hiển thị trên web (Ví dụ: dùng dấu / cho phân số thay vì \\frac, viết là: (p.V)/T = hằng số thay vì \\frac{{p.V}}{{T}}).
                 
                 BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown hay ```json), bao gồm một danh sách các câu hỏi theo cấu trúc chuẩn sau:
                 [
