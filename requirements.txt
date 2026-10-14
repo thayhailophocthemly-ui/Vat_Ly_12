@@ -3,5 +3,5 @@ google-generativeai
 python-docx
 streamlit-mic-recorder
 gspread
-#oauth2client
+oauth2client
 #pandasstreamlit
