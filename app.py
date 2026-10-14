@@ -12,9 +12,10 @@ import pandas as pd
 st.set_page_config(page_title="Ôn tập Vật lý 12 - AI Pro", layout="centered")
 
 # Cấu hình API Gemini
-API_KEY = "AQ.Ab8RN6KOM_23kctvGmqvoYAvRuoSzpHiKHEd1nU6IJcL8cmJtw"
+API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+
+model = genai.GenerativeModel('gemini-3.5-flash-lite')
 
 # Khởi tạo Session State
 if 'matrices_dict' not in st.session_state:
