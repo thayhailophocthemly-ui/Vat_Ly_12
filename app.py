@@ -194,11 +194,12 @@ with tab2:
                 except Exception as e:
                     st.warning(f"⚠️ Lưu ý: Chưa kết nối thành công file Google Sheets, nhưng bài làm đã được chấm xong! Chi tiết: {e}")
 
-            # --- CỬA SỔ CHAT ĐA LƯỢT (HỎI - ĐÁP LIÊN TỤC KHÔNG GIỚI HẠN) ---
+            # --- CỬA SỔ CHAT ĐA LƯỢT (GỬI ÂM THANH TRỰC TIẾP CHO AI KHÔNG QUA Ô TEXT) ---
             st.markdown("---")
-            st.subheader("💬 Góc thắc mắc cùng AI (Hỏi - Đáp liên tục)")
-            st.markdown("_Em có thể hỏi nhiều lần về bất kỳ câu nào trong đề. AI sẽ luôn nhớ ngữ cảnh để giải đáp cho em!_")
+            st.subheader("💬 Góc thắc mắc cùng AI (Hỏi - Đáp linh hoạt)")
+            st.markdown("_Em có thể gõ chữ hoặc bấm nút thu âm trực tiếp để AI lắng nghe và giải đáp ngay lập tức!_")
             
+            # Khởi tạo phiên chat đa lượt lưu ngữ cảnh đề thi
             if 'chat_session' not in st.session_state:
                 initial_context = f"Đây là đề thi Vật lý 12 học sinh vừa làm: {str(st.session_state.get('quiz_data', ''))}. Hãy đóng vai trò gia sư Vật lý thân thiện, kiên nhẫn giải đáp mọi thắc mắc liên tục cho học sinh."
                 st.session_state['chat_session'] = model.start_chat(history=[
@@ -209,51 +210,58 @@ with tab2:
             if 'messages' not in st.session_state:
                 st.session_state['messages'] = []
 
+            # Hiển thị lịch sử trò chuyện
             for message in st.session_state['messages']:
                 with st.chat_message(message["role"]):
                     st.markdown(message["content"])
 
-            col_mic, col_text = st.columns([1, 2])
-            audio_text_result = ""
-            
+            # Bố cục giao diện: Nút thu âm gọn gàng bên trái
+            col_mic, col_space = st.columns([1, 4])
             with col_mic:
-                audio_info = mic_recorder(start_prompt="🎙️ Thu âm câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_chat_pro')
-            
+                audio_info = mic_recorder(start_prompt="🎙️ Nói câu hỏi", stop_prompt="⏹️ Dừng", key='recorder_direct_audio_v4')
+
+            # Xử lý trực tiếp khi học sinh thu âm xong (Gửi thẳng audio cho Gemini)
             if audio_info is not None:
                 audio_bytes = audio_info.get('bytes')
                 if audio_bytes:
-                    with st.spinner("🔄 Đang chuyển giọng nói thành văn bản..."):
-                        try:
-                            audio_prompt = [
-                                "Hãy chuyển đổi chính xác đoạn ghi âm giọng nói của học sinh thành văn bản tiếng Việt để hỏi về Vật lý:",
-                                {"mime_type": "audio/wav", "data": audio_bytes}
-                            ]
-                            transcribe_response = model.generate_content(audio_prompt)
-                            audio_text_result = transcribe_response.text.strip()
-                        except:
-                            audio_text_result = ""
-            
-            with col_text:
-                recognized_input = st.text_input("Nội dung giọng nói thu được:", value=audio_text_result, key="rec_input_box_v2")
+                    # Ghi nhận hành động học sinh gửi voice vào khung chat
+                    audio_label = "🎤 *(Học sinh đã gửi một câu hỏi bằng giọng nói)*"
+                    st.session_state['messages'].append({"role": "user", "content": audio_label})
+                    with st.chat_message("user"):
+                        st.markdown(audio_label)
+                    
+                    with st.chat_message("assistant"):
+                        with st.spinner("🤖 AI đang lắng nghe câu hỏi và suy nghĩ giải đáp..."):
+                            try:
+                                # Đóng gói dữ liệu âm thanh dạng bytes gửi trực tiếp cho Gemini
+                                audio_part = {"mime_type": "audio/wav", "data": audio_bytes}
+                                chat_response = st.session_state['chat_session'].send_message([
+                                    "Học sinh vừa đặt câu hỏi bằng giọng nói liên quan đến đề thi Vật lý 12 ở trên, hãy lắng nghe và giải đáp thật chi tiết, dễ hiểu:",
+                                    audio_part
+                                ])
+                                ai_reply = chat_response.text
+                                st.markdown(ai_reply)
+                                st.session_state['messages'].append({"role": "assistant", "content": ai_reply})
+                                st.rerun() # Tải lại trang để đồng bộ lịch sử chat
+                            except Exception as e:
+                                st.error(f"Đã xảy ra lỗi khi xử lý âm thanh: {e}")
 
-            user_prompt = st.chat_input("Nhập câu hỏi thắc mắc của em tại đây...")
-            target_query = user_prompt if user_prompt else recognized_input
-            
-            if target_query and target_query != "Nội dung giọng nói thu được từ micro...":
-                st.session_state['messages'].append({"role": "user", "content": target_query})
+            # Ô nhập chat gõ chữ truyền thống phía dưới
+            user_prompt = st.chat_input("Hoặc nhập câu hỏi thắc mắc của em tại đây...")
+            if user_prompt:
+                st.session_state['messages'].append({"role": "user", "content": user_prompt})
                 with st.chat_message("user"):
-                    st.markdown(target_query)
+                    st.markdown(user_prompt)
                 
                 with st.chat_message("assistant"):
                     with st.spinner("🤖 AI đang suy nghĩ và giải đáp..."):
                         try:
-                            chat_response = st.session_state['chat_session'].send_message(target_query)
+                            chat_response = st.session_state['chat_session'].send_message(user_prompt)
                             ai_reply = chat_response.text
                             st.markdown(ai_reply)
                             st.session_state['messages'].append({"role": "assistant", "content": ai_reply})
                         except Exception as e:
                             st.error(f"Đã xảy ra lỗi khi trò chuyện với AI: {e}")
-
 with tab3:
     st.subheader("📊 Theo dõi và đánh giá sự tiến bộ")
     role = st.radio("Bạn là ai?", ["Học sinh", "Giáo viên"])
