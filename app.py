@@ -181,6 +181,7 @@ with tab2:
         if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
                 with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa cấu trúc Bộ GD&ĐT..."):
                     active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
+                 
                     prompt = f"""
                     Bạn là chuyên gia công nghệ thông tin và là chuyên gia ứng dụng trí tuệ nhân tạo AI vào dạy học môn Vật lí. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
                     
