@@ -16,7 +16,7 @@ API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-3.5-flash-lite')
 
-
+ 
 # Khởi tạo Session State lưu ma trận và trạng thái hệ thống
 if 'matrices_dict' not in st.session_state:
     st.session_state['matrices_dict'] = {
