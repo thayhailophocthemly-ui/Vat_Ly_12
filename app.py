@@ -39,17 +39,6 @@ if 'teacher_logged_in' not in st.session_state:
 st.title("⚡ HỆ THỐNG ÔN TẬP VẬT LÝ 12 THÔNG MINH")
 st.write("Ứng dụng tương tác thông minh hỗ trợ học sinh ôn tập bám sát ma trận đặc tả chuẩn mới.")
 
-# Sidebar đăng ký thông tin học sinh
-st.sidebar.header("👤 Thông tin học sinh")
-name = st.sidebar.text_input("Họ và tên:")
-cl = st.sidebar.text_input("Lớp:")
-
-if not name or not cl:
-    st.warning("⚠️ Thầy/cô và các em học sinh vui lòng nhập Họ tên và Lớp ở thanh bên trái để bắt đầu!")
-    st.stop()
-
-st.success(f"Chào em **{name}** - Lớp **{cl}**! Chúc em ôn tập thật tốt.")
-
 # Tạo các Tab chức năng chính
 tab1, tab2, tab3 = st.tabs(["📂 1. Chọn Kỳ Thi & Ma Trận", "📝 2. Làm Bài & Tương Tác AI", "📊 3. Lịch Sử & Tiến Bộ"])
 
@@ -151,21 +140,22 @@ with tab1:
                 st.session_state['matrix_parts'][target_exam] = f_part
                 st.success(f"Đã lưu thành công ma trận cho **{target_exam}**! Hãy bấm nút Đăng xuất bên trên khi làm xong.")
 with tab2:
+    # Lấy thông tin học sinh đã nhập ở Tab 1 (sub_tab_hs)
+    name = st.session_state.get('student_name', '')
+    cl = st.session_state.get('student_class', '')
     current_exam = st.session_state.get('selected_exam', '-- Chọn kỳ thi --')
-    if current_exam == '-- Chọn kỳ thi --':
-        st.warning("⚠️ Em chưa chọn kỳ thi ở Tab 1! Vui lòng quay lại Tab 1 để chọn kỳ thi trước.")
+    
+    if not name or not cl:
+        st.warning("⚠️ Vui lòng quay lại **Tab 1 -> Học sinh ôn tập** để nhập Họ tên và Lớp trước khi làm bài!")
+    elif current_exam == '-- Chọn kỳ thi --':
+        st.warning("⚠️ Em chưa chọn kỳ thi ôn tập ở Tab 1! Vui lòng quay lại Tab 1 để chọn kỳ thi.")
     else:
-        st.write(f"Đang ôn tập cho kỳ thi: **{current_exam}**")
-        section = st.radio(
-            "Chọn hình thức ôn tập:",
-            [
-                "Phần I - Trắc nghiệm nhiều lựa chọn (16 câu)",
-                "Phần II – Trắc nghiệm đúng sai (3 câu)",
-                "Phần III – Trắc nghiệm trả lời ngắn (6 câu)",
-                "Toàn bộ đề kiểm tra (Đầy đủ 3 phần)"
-            ]
-        )
-        
+        # Kiểm tra lại tính sẵn sàng của ma trận
+        active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
+        if not active_matrix.strip() and st.session_state['matrix_parts'].get(current_exam, None) is None:
+            st.error(f"❌ Kỳ thi **{current_exam}** chưa có ma trận từ giáo viên. Em chưa thể tạo đề thi ở phần này.")
+        else:
+            st.write(f"Học sinh: **{name}** (Lớp **{cl}**) | Đang ôn tập kỳ thi: **{current_exam}**")        
         # CSS tùy biến nút bấm nổi bật
         st.markdown("""
             <style>
