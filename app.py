@@ -33,7 +33,9 @@ if 'matrix_parts' not in st.session_state:
         "Kiểm tra Giữa kỳ 2": None,
         "Kiểm tra Cuối kỳ 2": None
     }
-
+# Bổ sung trạng thái quản lý đăng xuất an toàn cho giáo viên
+if 'teacher_logged_in' not in st.session_state:
+    st.session_state['teacher_logged_in'] = False
 st.title("⚡ HỆ THỐNG ÔN TẬP VẬT LÝ 12 THÔNG MINH")
 st.write("Ứng dụng tương tác thông minh hỗ trợ học sinh ôn tập bám sát ma trận đặc tả chuẩn mới.")
 
@@ -52,58 +54,102 @@ st.success(f"Chào em **{name}** - Lớp **{cl}**! Chúc em ôn tập thật t�
 tab1, tab2, tab3 = st.tabs(["📂 1. Chọn Kỳ Thi & Ma Trận", "📝 2. Làm Bài & Tương Tác AI", "📊 3. Lịch Sử & Tiến Bộ"])
 
 with tab1:
-    st.subheader("Bước 1: Chọn kỳ thi cần ôn tập")
-    exam_type = st.selectbox(
-        "Kỳ thi:",
-        ["-- Chọn kỳ thi --", "Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"]
-    )
+    st.subheader("Bước 1: Phân loại người dùng và chọn kỳ thi")
     
-    st.divider()
-    st.subheader("🔒 Khu vực Quản trị Giáo viên (Cấu hình Ma trận)")
-    teacher_pass = st.text_input("Nhập mật mã giáo viên để cấu hình:", type="password")
+    # Phân tách 2 tab nhỏ: Học sinh và Giáo viên quản trị
+    sub_tab_hs, sub_tab_gv = st.tabs(["👨‍🎓 Học sinh ôn tập", "🔐 Giáo viên quản trị"])
     
-    if teacher_pass == "vatly123":
-        st.success("✅ Xác thực quyền Giáo viên thành công!")
-        target_exam = st.selectbox("Chọn kỳ thi cập nhật ma trận:", ["Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"])
-        
-        current_text = st.session_state['matrices_dict'][target_exam]
-        if current_text or st.session_state['matrix_parts'][target_exam] is not None:
-            if st.button(f"🗑️ Xóa ma trận hiện tại của {target_exam}", key=f"del_{target_exam}"):
-                st.session_state['matrices_dict'][target_exam] = ""
-                st.session_state['matrix_parts'][target_exam] = None
-                st.success(f"Đã xóa ma trận của {target_exam} thành công!")
-                st.rerun()
-        
-        up_file = st.file_uploader(f"Tải file ma trận cho {target_exam} (.txt, .docx, .pdf, ảnh):", type=["txt", "docx", "pdf", "png", "jpg"], key=f"up_{target_exam}")
-        matrix_input = st.text_area("Hoặc dán nội dung ma trận đặc tả:", value=current_text if not current_text.startswith("File") else "", key=f"txt_{target_exam}")
-        
-        if st.button("💾 Lưu ma trận vào hệ thống", key=f"save_{target_exam}"):
-            extracted = matrix_input
-            f_part = None
-            if up_file is not None:
-                ext = up_file.name.split('.')[-1].lower()
-                if ext == "txt":
-                    extracted = up_file.read().decode("utf-8")
-                elif ext == "docx":
-                    doc = docx.Document(up_file)
-                    extracted = "\n".join([p.text for p in doc.paragraphs])
-                elif ext in ["pdf", "png", "jpg"]:
-                    f_bytes = up_file.read()
-                    mime = "application/pdf" if ext == "pdf" else f"image/{ext}"
-                    f_part = {"mime_type": mime, "data": f_bytes}
-                    extracted = f"[File đính kèm: {up_file.name}]"
+    with sub_tab_hs:
+        st.markdown("### 📝 Thông tin học sinh & Chọn kỳ kiểm tra")
+        col_h1, col_h2 = st.columns(2)
+        with col_h1:
+            name = st.text_input("Họ và tên học sinh:")
+        with col_h2:
+            cl = st.text_input("Lớp:")
             
-            st.session_state['matrices_dict'][target_exam] = extracted
-            st.session_state['matrix_parts'][target_exam] = f_part
-            st.success(f"Đã lưu thành công ma trận cho **{target_exam}**!")
-            
-    elif teacher_pass:
-        st.error("❌ Sai mật mã giáo viên!")
+        st.session_state['student_name'] = name
+        st.session_state['student_class'] = cl
         
-    if exam_type != "-- Chọn kỳ thi --":
-        st.session_state['selected_exam'] = exam_type
-        st.info(f"Đã chọn kỳ thi: **{exam_type}**. Vui lòng chuyển sang **Tab 2** để làm bài!")
+        if not name or not cl:
+            st.warning("⚠️ Em vui lòng nhập đầy đủ **Họ tên** và **Lớp** ở trên để bắt đầu chọn kỳ thi!")
+        else:
+            st.success(f"Chào em **{name}** - Lớp **{cl}**! Vui lòng chọn kỳ thi bên dưới:")
+            
+            exam_type = st.selectbox(
+                "Chọn kỳ thi cần ôn tập:",
+                ["-- Chọn kỳ thi --", "Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"],
+                key="student_exam_select"
+            )
+            
+            if exam_type != "-- Chọn kỳ thi --":
+                st.session_state['selected_exam'] = exam_type
+                matrix_content = st.session_state['matrices_dict'].get(exam_type, "")
+                matrix_file_obj = st.session_state['matrix_parts'].get(exam_type, None)
+                
+                # Kiểm tra ma trận đã được giáo viên cấu hình chưa
+                if matrix_content.strip() != "" or matrix_file_obj is not None:
+                    st.success(f"✅ Kỳ thi **{exam_type}** đã sẵn sàng ma trận ôn tập!")
+                    st.info("👉 Mời em chuyển sang **Tab 2 - Làm Bài & Tương Tác AI** ở phía trên để bắt đầu làm bài.")
+                else:
+                    st.error(f"❌ Kỳ thi **{exam_type}** hiện chưa được giáo viên cho phép ôn tập (chưa có ma trận). Em vui lòng chọn kỳ thi khác!")
 
+    with sub_tab_gv:
+        st.markdown("### 🔒 Khu vực Quản trị dành cho Giáo viên")
+        
+        # Kiểm tra nếu chưa đăng nhập thì hiện ô nhập mật khẩu
+        if not st.session_state['teacher_logged_in']:
+            teacher_pass = st.text_input("Nhập mật mã quản trị giáo viên:", type="password", key="pwd_input_box_v2")
+            col_p1, _ = st.columns([1, 4])
+            with col_p1:
+                if st.button("🔓 Đăng nhập quản trị"):
+                    if teacher_pass == "vatly123":
+                        st.session_state['teacher_logged_in'] = True
+                        st.success("✅ Đăng nhập thành công!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Sai mật mã giáo viên!")
+        else:
+            st.success("🟢 Bạn đang ở phiên làm việc Quản trị viên.")
+            
+            # Nút đăng xuất xóa ngay trạng thái mật khẩu khỏi bộ nhớ phiên
+            if st.button("🔒 Đăng xuất / Khóa phiên quản trị an toàn"):
+                st.session_state['teacher_logged_in'] = False
+                st.success("Đã khóa khu vực quản trị an toàn! Mật khẩu đã được xóa khỏi bộ nhớ.")
+                st.rerun()
+                
+            st.divider()
+            target_exam = st.selectbox("Chọn kỳ thi cần cập nhật ma trận:", ["Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"])
+            
+            current_text = st.session_state['matrices_dict'][target_exam]
+            if current_text or st.session_state['matrix_parts'][target_exam] is not None:
+                if st.button(f"🗑️ Xóa ma trận hiện tại của {target_exam}", key=f"del_{target_exam}"):
+                    st.session_state['matrices_dict'][target_exam] = ""
+                    st.session_state['matrix_parts'][target_exam] = None
+                    st.success(f"Đã xóa ma trận của {target_exam} thành công!")
+                    st.rerun()
+            
+            up_file = st.file_uploader(f"Tải file ma trận cho {target_exam} (.txt, .docx, .pdf, ảnh):", type=["txt", "docx", "pdf", "png", "jpg"], key=f"up_{target_exam}")
+            matrix_input = st.text_area("Hoặc dán nội dung ma trận đặc tả:", value=current_text if not str(current_text).startswith("File") else "", key=f"txt_{target_exam}")
+            
+            if st.button("💾 Lưu ma trận vào hệ thống", key=f"save_{target_exam}"):
+                extracted = matrix_input
+                f_part = None
+                if up_file is not None:
+                    ext = up_file.name.split('.')[-1].lower()
+                    if ext == "txt":
+                        extracted = up_file.read().decode("utf-8")
+                    elif ext == "docx":
+                        doc = docx.Document(up_file)
+                        extracted = "\n".join([p.text for p in doc.paragraphs])
+                    elif ext in ["pdf", "png", "jpg"]:
+                        f_bytes = up_file.read()
+                        mime = "application/pdf" if ext == "pdf" else f"image/{ext}"
+                        f_part = {"mime_type": mime, "data": f_bytes}
+                        extracted = f"[File đính kèm: {up_file.name}]"
+                
+                st.session_state['matrices_dict'][target_exam] = extracted
+                st.session_state['matrix_parts'][target_exam] = f_part
+                st.success(f"Đã lưu thành công ma trận cho **{target_exam}**! Hãy bấm nút Đăng xuất bên trên khi làm xong.")
 with tab2:
     current_exam = st.session_state.get('selected_exam', '-- Chọn kỳ thi --')
     if current_exam == '-- Chọn kỳ thi --':
