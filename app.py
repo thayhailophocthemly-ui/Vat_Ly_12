@@ -179,61 +179,62 @@ with tab2:
             </style>
         """, unsafe_allow_html=True)
 
-        if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
-            with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa cấu trúc Bộ GD&ĐT..."):
-                active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
-                
-                prompt = f"""
-                Bạn là chuyên gia ra đề Vật lý 12. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
-                
-                LƯU Ý CỰC KỲ QUAN TRỌNG VỀ TRÌNH BÀY:
-                1. Không dùng mã lệnh LaTeX phức tạp như \\frac, \\text. Hãy dùng Unicode symbol như Δ, λ và dấu / cho phân số.
-                2. QUY ĐỊNH BẮT BUỘC VỀ ĐÁP ÁN (options): Trong mảng options của Phần I, mỗi phương án BẮT BUỘC phải bắt đầu bằng định dạng chữ cái kèm dấu chấm (Ví dụ: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]).
-                
-                BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown hay ```json), bao gồm danh sách các câu hỏi theo đúng cấu trúc sau:
+if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
+                with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa cấu trúc Bộ GD&ĐT..."):
+                    active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
+                    
+                    # Khởi tạo chuỗi prompt hoàn toàn nằm trọn vẹn trong dấu ngoặc ba nháy f""" ... """
+                    prompt = f"""
+                    Bạn là chuyên gia công nghệ thông tin và là chuyên gia ứng dụng trí tuệ nhân tạo AI vào dạy học môn Vật lí. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
+                    
+                    LƯU Ý CỰC KỲ QUAN TRỌNG VỀ TRÌNH BÀY:
+                    1. Không dùng mã lệnh LaTeX phức tạp như \\frac, \\text. Hãy dùng Unicode symbol như Δ, λ và dấu / cho phân số.
+                    2. QUY ĐỊNH BẮT BUỘC VỀ ĐÁP ÁN (options): Trong mảng options của Phần I, mỗi phương án BẮT BUỘC phải bắt đầu bằng định dạng chữ cái kèm dấu chấm (Ví dụ: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]).
+                    
+                    BẮT BUỘC trả về kết quả dưới dạng một chuỗi JSON thuần túy (không kèm định dạng markdown hay ```json), bao gồm danh sách các câu hỏi theo đúng cấu trúc sau:
 
-                1. Nếu chọn Phần I (Trắc nghiệm nhiều lựa chọn):
-                [
-                  {{
-                    "type": "part1",
-                    "id": 1,
-                    "question": "Nội dung câu hỏi...",
-                    "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
-                    "answer": "A",
-                    "explanation": "Hướng dẫn giải..."
-                  }}
-                ]
-
-                2. Nếu chọn Phần II (Trắc nghiệm đúng sai - Đúng chuẩn Bộ GD&ĐT gồm 4 ý a, b, c, d):
-                [
-                  {{
-                    "type": "part2",
-                    "id": 1,
-                    "stem": "Đoạn văn cảnh / Ngữ cảnh bài tập...",
-                    "sub_questions": [
-                      {{"id": "a", "text": "Phát biểu a...", "answer": "Đúng", "explanation": "Giải thích a..."}},
-                      {{"id": "b", "text": "Phát biểu b...", "answer": "Sai", "explanation": "Giải thích b..."}},
-                      {{"id": "c", "text": "Phát biểu c...", "answer": "Đúng", "explanation": "Giải thích c..."}},
-                      {{"id": "d", "text": "Phát biểu d...", "answer": "Sai", "explanation": "Giải thích d..."}}
+                    1. Nếu chọn Phần I (Trắc nghiệm nhiều lựa chọn):
+                    [
+                      {{
+                        "type": "part1",
+                        "id": 1,
+                        "question": "Nội dung câu hỏi...",
+                        "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
+                        "answer": "A",
+                        "explanation": "Hướng dẫn giải..."
+                      }}
                     ]
-                  }}
-                ]
 
-                3. Nếu chọn Phần III (Trắc nghiệm trả lời ngắn):
-                [
-                  {{
-                    "type": "part3",
-                    "id": 1,
-                    "question": "Nội dung câu hỏi bài tập...",
-                    "answer": "12.5",
-                    "explanation": "Lời giải chi tiết và con số đáp án..."
-                  }}
-                ]
+                    2. Nếu chọn Phần II (Trắc nghiệm đúng sai - Đúng chuẩn Bộ GD&ĐT gồm 4 ý a, b, c, d):
+                    [
+                      {{
+                        "type": "part2",
+                        "id": 1,
+                        "stem": "Đoạn văn cảnh / Ngữ cảnh bài tập...",
+                        "sub_questions": [
+                          {{"id": "a", "text": "Phát biểu a...", "answer": "Đúng", "explanation": "Giải thích a..."}},
+                          {{"id": "b", "text": "Phát biểu b...", "answer": "Sai", "explanation": "Giải thích b..."}},
+                          {{"id": "c", "text": "Phát biểu c...", "answer": "Đúng", "explanation": "Giải thích c..."}},
+                          {{"id": "d", "text": "Phát biểu d...", "answer": "Sai", "explanation": "Giải thích d..."}}
+                        ]
+                      }}
+                    ]
 
-                4. Nếu chọn 'Toàn bộ đề kiểm tra': Trả về mảng gồm đủ các câu hỏi theo đúng 3 loại cấu trúc (part1, part2, part3) ở trên.
-                """
-                
-                response = model.generate_content(prompt)
+                    3. Nếu chọn Phần III (Trắc nghiệm trả lời ngắn):
+                    [
+                      {{
+                        "type": "part3",
+                        "id": 1,
+                        "question": "Nội dung câu hỏi bài tập...",
+                        "answer": "12.5",
+                        "explanation": "Lời giải chi tiết và con số đáp án..."
+                      }}
+                    ]
+
+                    4. Nếu chọn 'Toàn bộ đề kiểm tra': Trả về mảng gồm đủ các câu hỏi theo đúng 3 loại cấu trúc (part1, part2, part3) ở trên.
+                    """
+                    
+                    response = model.generate_content(prompt)
                 try:
                     clean_text = response.text.strip().replace("```json", "").replace("```", "")
                     st.session_state['quiz_data'] = json.loads(clean_text)
