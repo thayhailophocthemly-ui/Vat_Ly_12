@@ -179,11 +179,12 @@ with tab2:
             </style>
         """, unsafe_allow_html=True)
 
-if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
+          if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
                 with st.spinner("🤖 AI đang phân tích ma trận và biên soạn đề thi chuẩn hóa cấu trúc Bộ GD&ĐT..."):
                     active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
-                    
                     # Khởi tạo chuỗi prompt hoàn toàn nằm trọn vẹn trong dấu ngoặc ba nháy f""" ... """
+                    prompt = f"""
+                    # Điểm đầu: Bắt đầu gán chuỗi prompt bằng định dạng ba nháy f"""
                     prompt = f"""
                     Bạn là chuyên gia công nghệ thông tin và là chuyên gia ứng dụng trí tuệ nhân tạo AI vào dạy học môn Vật lí. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
                     
@@ -233,6 +234,7 @@ if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
 
                     4. Nếu chọn 'Toàn bộ đề kiểm tra': Trả về mảng gồm đủ các câu hỏi theo đúng 3 loại cấu trúc (part1, part2, part3) ở trên.
                     """
+                    # Điểm cuối: Dấu ngoặc kép đóng chuỗi prompt
                     
                     response = model.generate_content(prompt)
                 try:
