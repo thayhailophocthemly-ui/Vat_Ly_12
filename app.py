@@ -302,20 +302,36 @@ with tab2:
                 final_score = round((correct_count / total_items) * 10, 2)
                 st.success(f"🎉 Em đã hoàn thành bài! Điểm tổng kết: **{final_score} / 10 điểm**.")
 
-                # Tự động lưu vào Google Sheets (Chỉ lưu 1 lần khi nộp)
+               # Tự động lưu vào Google Sheets (Chỉ lưu 1 lần khi nộp)
                 if not st.session_state.get('saved_to_sheets', False):
                     try:
-                        scope = ["[https://spreadsheets.google.com/feeds](https://spreadsheets.google.com/feeds)", "[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)"]
-                        creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
+                        # Khai báo chuẩn các scope cần thiết cho Google Sheets & Drive
+                        scopes = [
+                            "https://www.googleapis.com/auth/spreadsheets",
+                            "https://www.googleapis.com/auth/drive"
+                        ]
+                        
+                        # Đọc thông tin trực tiếp từ st.secrets thay vì đọc file json
+                        creds_dict = dict(st.secrets["gcp_service_account"])
+                        # [QUAN TRỌNG] Chuyển đổi các ký tự "\n" dạng text thành ngắt dòng thực sự cho private_key
+                        if "private_key" in creds_dict:
+                            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+                        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        
                         client = gspread.authorize(creds)
+                        
+                        # Mở Google Sheet và ghi dữ liệu
                         sheet = client.open("LichSuOnTapVatLy12").sheet1
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
                         sheet.append_row([now_str, name, cl, current_exam, section, final_score])
+                        
                         st.session_state['saved_to_sheets'] = True
                         st.balloons()
                         st.toast("✅ Đã tự động lưu kết quả vào hệ thống!", icon="📊")
+                        
                     except Exception as e:
-                        pass
+                        st.error(f"Lưu kết quả lỗi, Chi tiết lỗi: {e}")
 
             # --- CỬA SỔ CHAT ĐA LƯỢT (THU ÂM TRỰC TIẾP AN TOÀN) ---
             st.markdown("---")
