@@ -50,26 +50,40 @@ with tab1:
     
     with sub_tab_hs:
         st.markdown("### 📝 Thông tin học sinh & Chọn kỳ kiểm tra")
-        col_h1, col_h2 = st.columns(2)
-        with col_h1:
-            name = st.text_input("Họ và tên học sinh:")
-        with col_h2:
-            cl = st.text_input("Lớp:")
-            
-        st.session_state['student_name'] = name
-        st.session_state['student_class'] = cl
+        st.markdown("##### 📌 Vui lòng điền thông tin cá nhân và bấm xác nhận trước khi chọn kỳ thi:")
         
-        if not name or not cl:
-            st.warning("⚠️ Em vui lòng nhập đầy đủ **Họ tên** và **Lớp** ở trên để bắt đầu chọn kỳ thi!")
-        else:
-            st.success(f"Chào em **{name}** - Lớp **{cl}**! Vui lòng chọn kỳ thi bên dưới:")
-            
+        # Ô nhập liệu tối ưu trên điện thoại (không bắt buộc nhấn phím Enter trên bàn phím ảo)
+        input_name = st.text_input("Họ và tên học sinh:", value=st.session_state.get('student_name', ''))
+        input_class = st.text_input("Lớp:", value=st.session_state.get('student_class', ''))
+        
+        # Nút bấm hành động thân thiện với màn hình cảm ứng di động
+        if st.button("🚀 Xác nhận thông tin học sinh"):
+            if input_name.strip() and input_class.strip():
+                st.session_state['student_name'] = input_name.strip()
+                st.session_state['student_class'] = input_class.strip()
+                st.success(f"Đã lưu thông tin: **{input_name.strip()}** - Lớp **{input_class.strip()}**! Em có thể chọn kỳ thi bên dưới.")
+            else:
+                st.warning("⚠️ Em vui lòng nhập đầy đủ cả Họ tên và Lớp nhé!")
+
+        # Hộp chọn kỳ thi chỉ hiển thị sau khi học sinh đã xác nhận thông tin thành công
+        if st.session_state.get('student_name') and st.session_state.get('student_class'):
+            st.divider()
             exam_type = st.selectbox(
                 "Chọn kỳ thi cần ôn tập:",
                 ["-- Chọn kỳ thi --", "Kiểm tra Giữa kỳ 1", "Kiểm tra Cuối kỳ 1", "Kiểm tra Giữa kỳ 2", "Kiểm tra Cuối kỳ 2"],
                 key="student_exam_select"
             )
             
+            if exam_type != "-- Chọn kỳ thi --":
+                st.session_state['selected_exam'] = exam_type
+                matrix_content = st.session_state['matrices_dict'].get(exam_type, "")
+                matrix_file_obj = st.session_state['matrix_parts'].get(exam_type, None)
+                
+                if matrix_content.strip() != "" or matrix_file_obj is not None:
+                    st.success(f"✅ Kỳ thi **{exam_type}** đã sẵn sàng ma trận ôn tập!")
+                    st.info("👉 Mời em chuyển sang **Tab 2 - Làm Bài & Tương Tác AI** ở phía trên để bắt đầu làm bài.")
+                else:
+                    st.error(f"❌ Kỳ thi **{exam_type}** hiện chưa được giáo viên cho phép ôn tập (chưa có ma trận). Em vui lòng chọn kỳ thi khác!")            
             if exam_type != "-- Chọn kỳ thi --":
                 st.session_state['selected_exam'] = exam_type
                 matrix_content = st.session_state['matrices_dict'].get(exam_type, "")
