@@ -229,8 +229,8 @@ if st.button("🚀 Bắt đầu tạo đề tương tác bám sát ma trận"):
 
                     4. Nếu chọn 'Toàn bộ đề kiểm tra': Trả về mảng gồm đủ các câu hỏi theo đúng 3 loại cấu trúc (part1, part2, part3) ở trên.
                     """
-                    # Điểm cuối: Dấu ngoặc kép đóng chuỗi prompt
                     
+                    # Điểm cuối: Dấu ngoặc kép đóng chuỗi prompt
                     response = model.generate_content(prompt)
                 try:
                     clean_text = response.text.strip().replace("```json", "").replace("```", "")
