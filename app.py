@@ -183,6 +183,7 @@ with tab2:
                     active_matrix = st.session_state['matrices_dict'].get(current_exam, "")
                     prompt = f"""
                     Bạn là chuyên gia công nghệ thông tin và là chuyên gia ứng dụng trí tuệ nhân tạo AI vào dạy học môn Vật lí. Dựa vào ma trận đặc tả sau: {active_matrix}, hãy tạo các câu hỏi ôn tập cho phần '{section}'.
+                    
                     LƯU Ý CỰC KỲ QUAN TRỌNG VỀ TRÌNH BÀY:
                     1. Không dùng mã lệnh LaTeX phức tạp như \\frac, \\text. Hãy dùng Unicode symbol như Δ, λ và dấu / cho phân số.
                     2. QUY ĐỊNH BẮT BUỘC VỀ ĐÁP ÁN (options): Trong mảng options của Phần I, mỗi phương án BẮT BUỘC phải bắt đầu bằng định dạng chữ cái kèm dấu chấm (Ví dụ: ["A. Nội dung đáp án A", "B. Nội dung đáp án B", "C. Nội dung đáp án C", "D. Nội dung đáp án D"]).
