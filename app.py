@@ -84,18 +84,7 @@ with tab1:
                     st.info("👉 Mời em chuyển sang **Tab 2 - Làm Bài & Tương Tác AI** ở phía trên để bắt đầu làm bài.")
                 else:
                     st.error(f"❌ Kỳ thi **{exam_type}** hiện chưa được giáo viên cho phép ôn tập (chưa có ma trận). Em vui lòng chọn kỳ thi khác!")            
-            if exam_type != "-- Chọn kỳ thi --":
-                st.session_state['selected_exam'] = exam_type
-                matrix_content = st.session_state['matrices_dict'].get(exam_type, "")
-                matrix_file_obj = st.session_state['matrix_parts'].get(exam_type, None)
-                
-                # Kiểm tra ma trận đã được giáo viên cấu hình chưa
-                if matrix_content.strip() != "" or matrix_file_obj is not None:
-                    st.success(f"✅ Kỳ thi **{exam_type}** đã sẵn sàng ma trận ôn tập!")
-                    st.info("👉 Mời em chuyển sang **Tab 2 - Làm Bài & Tương Tác AI** ở phía trên để bắt đầu làm bài.")
-                else:
-                    st.error(f"❌ Kỳ thi **{exam_type}** hiện chưa được giáo viên cho phép ôn tập (chưa có ma trận). Em vui lòng chọn kỳ thi khác!")
-
+            
     with sub_tab_gv:
         st.markdown("### 🔒 Khu vực Quản trị dành cho Giáo viên")
         
