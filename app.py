@@ -166,10 +166,10 @@ with tab2:
             section = st.radio(
                 "Chọn hình thức ôn tập:",
                 [
-                    "Phần I - Trắc nghiệm nhiều lựa chọn (16 câu)",
-                    "Phần II – Trắc nghiệm đúng sai (3 câu)",
-                    "Phần III – Trắc nghiệm trả lời ngắn (6 câu)",
-                    "Toàn bộ đề kiểm tra (Đầy đủ 3 phần)"
+                    "Phần I - Trắc nghiệm nhiều lựa chọn",
+                    "Phần II – Trắc nghiệm đúng sai",
+                    "Phần III – Trắc nghiệm trả lời ngắn",
+                    "Toàn bộ đề kiểm tra"
                 ]
             )
             
